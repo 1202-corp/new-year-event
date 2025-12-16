@@ -685,9 +685,9 @@ class Game:
             x_offset += target_width
             combined[:, x_offset:x_offset + target_width] = motion_resized
             
-            # Resize final combined image by 1.5x (divide by 1.5)
-            final_width = int(total_width / 1.5)
-            final_height = int(target_height / 1.5)
+            # Resize final combined image by 3x (divide by 3)
+            final_width = int(total_width / 3)
+            final_height = int(target_height / 3)
             final_combined = cv2.resize(combined, (final_width, final_height))
             
             # Show combined window
