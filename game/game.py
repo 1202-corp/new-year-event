@@ -13,6 +13,7 @@ from game.ui.menu import PauseMenu
 from game.ui_panel import UIPanel
 from game.scaling import init_scaling, get_scaling
 from game.logger import get_logger
+from game.aruco_transform import ArucoTransform
 
 logger = get_logger()
 
@@ -126,6 +127,20 @@ class Game:
             on_restart=self.restart_game,
             on_quit=self.quit_game
         )
+        
+        # Aruco transform for perspective correction (optional, enabled via config)
+        self.aruco_transform = None
+        if Config.CALIBRATION_ENABLED:
+            try:
+                self.aruco_transform = ArucoTransform(
+                    camera_index=Config.SNOWBALL_CAMERA_INDEX,
+                    camera_width=Config.SNOWBALL_CAMERA_WIDTH,
+                    camera_height=Config.SNOWBALL_CAMERA_HEIGHT
+                )
+                logger.info("Aruco transform enabled for perspective correction")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Aruco transform: {e}")
+                self.aruco_transform = None
     
     def _update_scaling(self) -> None:
         """Updates scaling based on current screen size and updates all existing objects"""
@@ -343,12 +358,56 @@ class Game:
         if self.state == GameState.PAUSED:
             self.pause_menu.draw(self.screen)
         
-        pygame.display.flip()
+        # Apply Aruco perspective transform if enabled
+        if self.aruco_transform is not None:
+            self._apply_aruco_transform()
+        else:
+            pygame.display.flip()
     
     def draw_ui(self) -> None:
         """Draws game UI (currently disabled - no on-screen text)"""
         # UI elements removed for projector setup
         pass
+    
+    def _apply_aruco_transform(self) -> None:
+        """Apply Aruco perspective transformation to the game screen"""
+        try:
+            import numpy as np
+            import cv2
+            
+            # Update transform based on current camera frame
+            screen_width = self.screen.get_width()
+            screen_height = self.screen.get_height()
+            
+            if self.aruco_transform.update(screen_width, screen_height):
+                # Convert pygame surface to numpy array
+                # Pygame surface is in RGB format
+                screen_array = pygame.surfarray.array3d(self.screen)
+                # Transpose from (width, height, channels) to (height, width, channels)
+                screen_array = np.transpose(screen_array, (1, 0, 2))
+                # Convert RGB to BGR for OpenCV
+                screen_bgr = cv2.cvtColor(screen_array, cv2.COLOR_RGB2BGR)
+                
+                # Apply perspective transformation
+                transformed = self.aruco_transform.apply_transform(screen_bgr)
+                
+                if transformed is not None:
+                    # Convert back to RGB
+                    transformed_rgb = cv2.cvtColor(transformed, cv2.COLOR_BGR2RGB)
+                    # Transpose back to (width, height, channels)
+                    transformed_rgb = np.transpose(transformed_rgb, (1, 0, 2))
+                    # Create new pygame surface from transformed array
+                    transformed_surface = pygame.surfarray.make_surface(transformed_rgb)
+                    # Blit transformed surface to screen
+                    self.screen.blit(transformed_surface, (0, 0))
+            
+            pygame.display.flip()
+        except ImportError:
+            # OpenCV or numpy not available, skip transform
+            pygame.display.flip()
+        except Exception as e:
+            logger.debug(f"Error applying Aruco transform: {e}")
+            pygame.display.flip()
     
     def draw_safe_area(self) -> None:
         """Draws safe area borders (for projector edge cutoff)"""
