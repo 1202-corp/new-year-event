@@ -23,6 +23,12 @@ CHARACTER_WIDTH = 60
 CHARACTER_HEIGHT = 60
 CHARACTER_SPAWN_INTERVAL = 2.0  # seconds
 CHARACTER_SPAWN_X = -60
+MAX_ENEMIES = 20  # Maximum number of enemies on screen
+NUM_LANES = 4  # Number of lanes for enemies
+
+# UI Panel settings
+UI_PANEL_HEIGHT_PERCENT = 20  # Percentage of screen height for bottom UI panel
+CAMERA_WINDOW_SIZE = 200  # Size of camera preview window (square)
 
 # UI settings
 BUTTON_WIDTH = 200

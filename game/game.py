@@ -10,6 +10,7 @@ from game.character import Character
 from game.spawner import CharacterSpawner
 from game.score import ScoreManager
 from game.ui.menu import PauseMenu
+from game.ui_panel import UIPanel
 from game.scaling import init_scaling, get_scaling
 from game.logger import get_logger
 
@@ -119,6 +120,12 @@ class Game:
             on_restart=self.restart_game,
             on_quit=self.quit_game
         )
+        
+        # UI Panel (bottom RPG-style panel)
+        self.ui_panel = UIPanel(
+            self.screen.get_width(),
+            self.screen.get_height()
+        )
     
     def _update_scaling(self) -> None:
         """Updates scaling based on current screen size and updates all existing objects"""
@@ -148,8 +155,8 @@ class Game:
                     character.x = character.x * scale_x_ratio
                     character.y = character.y * scale_y_ratio
                     
-                    # Update character speed (scale with width)
-                    character.speed = character.speed * scale_x_ratio
+                    # Don't update speed - keep original speed
+                    # Speed should remain constant regardless of screen size
         else:
             # First initialization or no size change - just update scaling for new characters
             for character in self.characters:
@@ -244,32 +251,36 @@ class Game:
         if self.state != GameState.PLAYING:
             return
         
-        # Update characters
+        # Update characters (accounting for UI panel)
         screen_width = self.screen.get_width()
         screen_height = self.screen.get_height()
+        ui_panel_height = self.ui_panel.panel_height
+        # Effective game area height (excluding UI panel)
+        game_area_height = screen_height - ui_panel_height
+        
         for character in self.characters:
-            character.update(dt, screen_width=screen_width, screen_height=screen_height)
+            character.update(dt, screen_width=screen_width, screen_height=game_area_height)
         
-        # Cleanup off-screen characters (accounting for safe area)
-        screen_width = self.screen.get_width()
-        screen_height = self.screen.get_height()
-        from game.safe_area import get_safe_area_margin
-        margin = get_safe_area_margin(screen_width, screen_height)
-        # Remove characters that are past the right edge (including safe area)
-        self.characters = self.spawner.cleanup_characters(
-            self.characters, 
-            screen_width - margin
-        )
+        # Cleanup off-screen characters (only flying type)
+        self.characters = self.spawner.cleanup_characters(self.characters, screen_width)
         
-        # Spawn new characters
+        # Count existing patrolling enemies
+        from game.enums import MovementType
+        patrolling_count = sum(1 for c in self.characters if c.is_alive and c.movement_type == MovementType.PATROLLING)
+        alive_count = sum(1 for c in self.characters if c.is_alive)
+        
+        # Spawn new characters if under max limit
         self.spawn_timer += dt
-        if self.spawn_timer >= self.spawn_interval:
-            screen_width = self.screen.get_width()
-            screen_height = self.screen.get_height()
-            self.characters.append(self.spawner.spawn_character(
+        if self.spawn_timer >= self.spawn_interval and alive_count < Config.MAX_ENEMIES:
+            new_character = self.spawner.spawn_character(
                 screen_width=screen_width,
-                screen_height=screen_height
-            ))
+                screen_height=screen_height,
+                ui_panel_height=ui_panel_height,
+                existing_patrolling=patrolling_count,
+                max_enemies=Config.MAX_ENEMIES
+            )
+            if new_character:
+                self.characters.append(new_character)
             self.spawn_timer = 0.0
     
     def draw(self) -> None:
@@ -280,9 +291,14 @@ class Game:
         # Draw safe area borders first (will be covered by characters if they overlap)
         self.draw_safe_area()
         
-        # Draw characters
+        # Draw characters (only in game area, above UI panel)
+        ui_panel_height = self.ui_panel.panel_height
         for character in self.characters:
-            character.draw(self.screen)
+            character.draw(self.screen, ui_panel_height=ui_panel_height)
+        
+        # Draw UI panel (bottom)
+        alive_count = sum(1 for c in self.characters if c.is_alive)
+        self.ui_panel.draw(self.screen, self.score_manager.get_score(), alive_count, Config.MAX_ENEMIES)
         
         # Draw UI (currently disabled)
         self.draw_ui()
@@ -302,18 +318,20 @@ class Game:
         """Draws safe area borders (for projector edge cutoff)"""
         screen_width = self.screen.get_width()
         screen_height = self.screen.get_height()
+        ui_panel_height = self.ui_panel.panel_height
         from game.safe_area import get_safe_area_margin
-        margin = get_safe_area_margin(screen_width, screen_height)
+        margin = get_safe_area_margin(screen_width, screen_height, ui_panel_height)
         
-        # Draw safe area borders with background color
+        # Draw safe area borders with background color (only in game area, not UI panel)
+        game_area_height = screen_height - ui_panel_height
         # Top border
         pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, screen_width, margin))
-        # Bottom border
-        pygame.draw.rect(self.screen, DARK_BLUE, (0, screen_height - margin, screen_width, margin))
+        # Bottom border (above UI panel)
+        pygame.draw.rect(self.screen, DARK_BLUE, (0, game_area_height - margin, screen_width, margin))
         # Left border
-        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, margin, screen_height))
+        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, margin, game_area_height))
         # Right border
-        pygame.draw.rect(self.screen, DARK_BLUE, (screen_width - margin, 0, margin, screen_height))
+        pygame.draw.rect(self.screen, DARK_BLUE, (screen_width - margin, 0, margin, game_area_height))
     
     def run(self) -> None:
         """Main game loop"""

@@ -2,7 +2,7 @@
 from game.config import Config
 
 
-def get_safe_area_margin(screen_width: int = None, screen_height: int = None) -> int:
+def get_safe_area_margin(screen_width: int = None, screen_height: int = None, ui_panel_height: int = 0) -> int:
     """
     Calculate safe area margin in pixels based on percentage.
     Uses average of width and height percentages for uniform margins.
@@ -12,7 +12,9 @@ def get_safe_area_margin(screen_width: int = None, screen_height: int = None) ->
         screen_height = Config.SCREEN_HEIGHT
     
     # Calculate margin as percentage of average dimension
-    avg_dimension = (screen_width + screen_height) / 2
+    # Account for UI panel in height calculation
+    effective_height = screen_height - ui_panel_height
+    avg_dimension = (screen_width + effective_height) / 2
     margin_pixels = int(avg_dimension * Config.SAFE_AREA_MARGIN_PERCENT / 100)
     
     return margin_pixels

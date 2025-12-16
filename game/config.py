@@ -25,6 +25,14 @@ class Config:
     # Safe area settings (percentage, 0-100)
     SAFE_AREA_MARGIN_PERCENT: float = float(os.getenv("SAFE_AREA_MARGIN_PERCENT", "3.9"))
     
+    # UI Panel settings
+    UI_PANEL_HEIGHT_PERCENT: float = float(os.getenv("UI_PANEL_HEIGHT_PERCENT", "20"))
+    CAMERA_WINDOW_SIZE: int = int(os.getenv("CAMERA_WINDOW_SIZE", "200"))
+    
+    # Gameplay settings
+    MAX_ENEMIES: int = int(os.getenv("MAX_ENEMIES", "20"))
+    NUM_LANES: int = int(os.getenv("NUM_LANES", "4"))
+    
     # Camera settings
     CAMERA_INDEX: int = int(os.getenv("CAMERA_INDEX", "0"))
     CAMERA_WIDTH: int = int(os.getenv("CAMERA_WIDTH", "1920"))

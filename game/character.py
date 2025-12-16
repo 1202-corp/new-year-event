@@ -1,7 +1,8 @@
 """Character module"""
 import pygame
+import random
 from typing import Tuple, Optional
-from game.enums import CharacterType
+from game.enums import CharacterType, MovementType
 from game.constants import (
     WHITE, GREEN, RED, YELLOW, ORANGE, BLACK,
     CHARACTER_WIDTH, CHARACTER_HEIGHT
@@ -12,12 +13,30 @@ from game.scaling import get_scaling
 class Character:
     """Character class representing an enemy"""
     
-    def __init__(self, char_type: CharacterType, x: float, y: float, speed: float, screen_height: Optional[int] = None):
+    def __init__(
+        self, 
+        char_type: CharacterType, 
+        x: float, 
+        y: float, 
+        speed: float, 
+        movement_type: MovementType,
+        lane: int,
+        screen_height: Optional[int] = None
+    ):
         self.type = char_type
         self.x = x
         self.y = y
         self.speed = speed
+        self.movement_type = movement_type
+        self.lane = lane
         self.screen_height = screen_height
+        
+        # Direction: 1 = right, -1 = left
+        self.direction = 1 if movement_type == MovementType.FLYING else random.choice([-1, 1])
+        
+        # For patrolling characters
+        self.patrol_change_timer = 0.0
+        self.patrol_change_interval = random.uniform(2.0, 5.0)  # Change direction every 2-5 seconds
         
         # Scale character size
         scaling = get_scaling()
@@ -32,7 +51,7 @@ class Character:
         self.base_width = CHARACTER_WIDTH
         self.base_height = CHARACTER_HEIGHT
         self.base_speed = speed
-        
+    
     def _get_points(self) -> int:
         """Returns points for killing this character"""
         points_map = {
@@ -56,36 +75,55 @@ class Character:
         return color_map.get(self.type, WHITE)
     
     def update(self, dt: float, screen_width: int = None, screen_height: int = None) -> None:
-        """Updates character position, respecting safe area"""
+        """Updates character position based on movement type"""
         if not self.is_alive:
             return
         
-        # Move character
-        new_x = self.x + self.speed * dt
+        from game.safe_area import get_safe_area_margin
         
-        # Check if character would go outside safe area on the right
-        if screen_width is not None:
-            from game.safe_area import get_safe_area_margin
-            margin = get_safe_area_margin(screen_width, screen_height)
-            safe_right = screen_width - margin
-            # Allow character to move past safe area (they'll be cleaned up)
-            # But don't let them spawn or stay in the safe area border
-            if new_x > safe_right:
-                # Character is past safe area, will be cleaned up
-                pass
+        if screen_width is None or screen_height is None:
+            return
         
-        self.x = new_x
+        margin = get_safe_area_margin(screen_width, screen_height)
+        safe_left = margin
+        safe_right = screen_width - margin
+        
+        if self.movement_type == MovementType.FLYING:
+            # Flying: move in one direction until off screen
+            self.x += self.speed * self.direction * dt
+        else:
+            # Patrolling: move left-right, change direction at edges or randomly
+            self.patrol_change_timer += dt
+            
+            # Check if at edge
+            if self.x <= safe_left:
+                self.direction = 1
+                self.patrol_change_timer = 0.0
+            elif self.x + self.width >= safe_right:
+                self.direction = -1
+                self.patrol_change_timer = 0.0
+            # Random direction change
+            elif self.patrol_change_timer >= self.patrol_change_interval:
+                self.direction = random.choice([-1, 1])
+                self.patrol_change_timer = 0.0
+                self.patrol_change_interval = random.uniform(2.0, 5.0)
+            
+            # Move in current direction
+            self.x += self.speed * self.direction * dt
+            
+            # Keep within bounds
+            self.x = max(safe_left, min(self.x, safe_right - self.width))
     
     def update_scaling(self) -> None:
-        """Updates character size and speed based on current scaling"""
+        """Updates character size based on current scaling"""
         scaling = get_scaling()
         self.width = int(scaling.scale_value(self.base_width))
         self.height = int(scaling.scale_value(self.base_height))
-        # Speed should scale with screen width
-        self.speed = self.base_speed * scaling.scale_x
+        # Speed should NOT scale - keep original speed
+        self.speed = self.base_speed
     
-    def draw(self, screen: pygame.Surface) -> None:
-        """Draws the character, ensuring it doesn't draw in safe area borders"""
+    def draw(self, screen: pygame.Surface, ui_panel_height: int = 0) -> None:
+        """Draws the character, ensuring it doesn't draw in safe area borders or UI panel"""
         if not self.is_alive:
             return
         
@@ -93,13 +131,13 @@ class Character:
         
         screen_width = screen.get_width()
         screen_height = screen.get_height()
-        margin = get_safe_area_margin(screen_width, screen_height)
+        margin = get_safe_area_margin(screen_width, screen_height, ui_panel_height)
         
         # Check if character is completely outside safe area (shouldn't happen, but safety check)
         safe_left = margin
         safe_right = screen_width - margin
         safe_top = margin
-        safe_bottom = screen_height - margin
+        safe_bottom = screen_height - ui_panel_height - margin  # Don't draw in UI panel area
         
         # Don't draw if character is in safe area borders
         if (self.x < safe_left or 
@@ -139,4 +177,3 @@ class Character:
     def is_point_inside(self, point: Tuple[int, int]) -> bool:
         """Checks if point is inside character"""
         return self.get_rect().collidepoint(point)
-
