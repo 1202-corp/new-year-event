@@ -44,5 +44,9 @@ Thumbs.db
 !assets/**/*.png
 !assets/**/*.jpg
 
+# Environment files - .env is tracked, .env.local is not
+.env.local
+.env.*.local
+
 
 

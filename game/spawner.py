@@ -3,7 +3,8 @@ import random
 from typing import List
 from game.character import Character
 from game.enums import CharacterType
-from game.constants import SCREEN_HEIGHT, CHARACTER_SPAWN_X
+from game.config import Config
+from game.constants import CHARACTER_SPAWN_X
 
 
 class CharacterSpawner:
@@ -30,7 +31,7 @@ class CharacterSpawner:
     def spawn_character(self, min_y: int = 100, max_y: int = None) -> Character:
         """Spawns a new character at random position"""
         if max_y is None:
-            max_y = SCREEN_HEIGHT - 200
+            max_y = Config.SCREEN_HEIGHT - 200
         
         char_type = random.choice(self.char_types)
         y = random.randint(min_y, max_y)

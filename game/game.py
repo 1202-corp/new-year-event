@@ -2,7 +2,8 @@
 import pygame
 import sys
 from typing import List, Tuple
-from game.constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, DARK_BLUE, WHITE
+from game.config import Config
+from game.constants import DARK_BLUE, WHITE
 from game.enums import GameState
 from game.character import Character
 from game.spawner import CharacterSpawner
@@ -15,7 +16,7 @@ class Game:
     
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.screen = pygame.display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
         pygame.display.set_caption("New Year Arcade Game")
         self.clock = pygame.time.Clock()
         
@@ -33,7 +34,7 @@ class Game:
         
         # Spawn timing
         self.spawn_timer = 0.0
-        self.spawn_interval = 2.0
+        self.spawn_interval = Config.CHARACTER_SPAWN_INTERVAL
         
         # UI
         self.font_large = pygame.font.Font(None, 48)
@@ -67,7 +68,7 @@ class Game:
         if self.fullscreen:
             self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         else:
-            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+            self.screen = pygame.display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
     
     def handle_click(self, pos: Tuple[int, int]) -> None:
         """Handles mouse click"""
@@ -177,7 +178,7 @@ class Game:
             self.update(dt)
             self.draw()
             
-            self.clock.tick(FPS)
+            self.clock.tick(Config.FPS)
         
         pygame.quit()
         sys.exit()
