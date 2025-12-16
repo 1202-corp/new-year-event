@@ -19,6 +19,12 @@ if display_number != 0:
     logger.info(f"Setting DISPLAY to: {display_var}")
     logger.info(f"Current DISPLAY: {os.environ.get('DISPLAY')}")
 
+# Set Qt platform plugin to xcb for OpenCV windows
+# This must be set before importing cv2
+os.environ["QT_QPA_PLATFORM"] = "xcb"
+# Also set for OpenCV GUI backend
+os.environ["OPENCV_GUI_BACKEND"] = "GTK"  # Try GTK instead of Qt
+
 # Now we can import game modules (which import pygame)
 from game.config import Config
 from game.game import Game

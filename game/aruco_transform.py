@@ -403,9 +403,14 @@ class ArucoTransform:
         debug_frame = np.zeros((480, 640, 3), dtype=np.uint8)
         cv2.putText(debug_frame, "No camera frame", (50, 240),
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        cv2.imshow("Aruco Debug: Camera View", debug_frame)
-        # Process OpenCV window events
-        cv2.waitKey(1)
+        try:
+            cv2.imshow("Aruco Debug: Camera View", debug_frame)
+            # Process OpenCV window events
+            cv2.waitKey(1)
+        except Exception as e:
+            logger.debug(f"Could not display debug window: {e}")
+            # Disable debug if windows can't be shown
+            self.debug_enabled = False
     
     def _draw_debug(self, frame, corners, ids, top_left, top_right, bottom_right, bottom_left,
                    src_points=None, dst_points=None, game_width=None, game_height=None):
@@ -485,10 +490,15 @@ class ArucoTransform:
         
         # Resize for display (half size)
         small_frame = cv2.resize(debug_frame, (w // 2, h // 2))
-        cv2.imshow("Aruco Debug: Camera View", small_frame)
-        
-        # Process OpenCV window events (required for window updates)
-        cv2.waitKey(1)
+        try:
+            cv2.imshow("Aruco Debug: Camera View", small_frame)
+            # Process OpenCV window events (required for window updates)
+            cv2.waitKey(1)
+        except Exception as e:
+            logger.debug(f"Could not display debug window: {e}")
+            # Disable debug if windows can't be shown
+            self.debug_enabled = False
+            return
         
         # Show transformed preview if transform is valid
         if self.transform_valid:
@@ -512,9 +522,14 @@ class ArucoTransform:
             if self.inverse_transform_matrix is not None:
                 transformed_preview = cv2.warpPerspective(test_rect, self.inverse_transform_matrix, (w, h))
                 small_preview = cv2.resize(transformed_preview, (w // 2, h // 2))
-                cv2.imshow("Aruco Debug: Transform Preview", small_preview)
-                # Process OpenCV window events
-                cv2.waitKey(1)
+                try:
+                    cv2.imshow("Aruco Debug: Transform Preview", small_preview)
+                    # Process OpenCV window events
+                    cv2.waitKey(1)
+                except Exception as e:
+                    logger.debug(f"Could not display transform preview: {e}")
+                    # Disable debug if windows can't be shown
+                    self.debug_enabled = False
     
     def apply_transform(self, game_surface: np.ndarray) -> Optional[np.ndarray]:
         """
