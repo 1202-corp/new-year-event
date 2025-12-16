@@ -181,6 +181,12 @@ def main():
         logger.error(f"Could not open camera {Config.SNOWBALL_CAMERA_INDEX}")
         return
     
+    # Set camera format to MJPEG (compressed) instead of RAW (uncompressed)
+    # MJPEG is much faster and lighter than RAW format
+    # FOURCC code for MJPEG: 'MJPG'
+    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+    camera.set(cv2.CAP_PROP_FOURCC, fourcc)
+    
     # Set camera resolution
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, Config.SNOWBALL_CAMERA_WIDTH)
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, Config.SNOWBALL_CAMERA_HEIGHT)
@@ -201,7 +207,12 @@ def main():
     except:
         pass  # Some cameras don't support direct ISO control
     
+    # Verify format
+    current_fourcc = int(camera.get(cv2.CAP_PROP_FOURCC))
+    fourcc_str = "".join([chr((current_fourcc >> 8 * i) & 0xFF) for i in range(4)])
+    
     logger.info("Camera initialized. Press 'q' to quit.")
+    logger.info(f"Camera format: {fourcc_str} (should be MJPG for MJPEG)")
     logger.info(f"Camera exposure set to: {camera.get(cv2.CAP_PROP_EXPOSURE)}")
     logger.info(f"Camera brightness set to: {camera.get(cv2.CAP_PROP_BRIGHTNESS)}")
     logger.info("Make sure 4 Aruco markers (ID: 0, 1, 2, 3) are visible in the frame.")
