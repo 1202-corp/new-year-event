@@ -213,15 +213,6 @@ class Character:
         # Draw character with height offset for depth
         character_y = self.y + self.height_offset
         pygame.draw.rect(screen, self.color, (self.x, character_y, self.width, self.height))
-        
-        # Add text label
-        scaling = get_scaling()
-        font_size = scaling.scale_font_size(24)
-        font = pygame.font.Font(None, font_size)
-        label = self._get_label()
-        text = font.render(label, True, BLACK)
-        text_rect = text.get_rect(center=(self.x + self.width // 2, character_y + self.height // 2))
-        screen.blit(text, text_rect)
     
     def _get_label(self) -> str:
         """Returns character label"""
