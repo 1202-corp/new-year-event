@@ -30,11 +30,14 @@ BUTTON_HEIGHT = 50
 BUTTON_SPACING = 20
 
 # Safe area (projector edge cutoff compensation)
-# This is now loaded from .env via Config.SAFE_AREA_MARGIN
-# Keeping this for backward compatibility, but prefer Config.SAFE_AREA_MARGIN
+# This is now calculated dynamically based on screen size and percentage
+# Use get_safe_area_margin() from game.safe_area module
 try:
-    from game.config import Config
-    SAFE_AREA_MARGIN = Config.SAFE_AREA_MARGIN
+    from game.safe_area import get_safe_area_margin
+    # For backward compatibility, provide a function that calculates margin
+    def SAFE_AREA_MARGIN(screen_width=None, screen_height=None):
+        return get_safe_area_margin(screen_width, screen_height)
 except ImportError:
-    SAFE_AREA_MARGIN = 10  # fallback
+    def SAFE_AREA_MARGIN(screen_width=None, screen_height=None):
+        return 10  # fallback
 

@@ -6,6 +6,7 @@ from game.enums import CharacterType
 from game.config import Config
 from game.constants import CHARACTER_SPAWN_X
 from game.scaling import get_scaling
+from game.safe_area import get_safe_area_margin
 
 
 class CharacterSpawner:
@@ -42,8 +43,8 @@ class CharacterSpawner:
         if screen_width is None:
             screen_width = Config.SCREEN_WIDTH
         
-        # Calculate safe area bounds
-        margin = Config.SAFE_AREA_MARGIN
+        # Calculate safe area bounds (using percentage-based margin)
+        margin = get_safe_area_margin(screen_width, screen_height)
         safe_top = margin
         safe_bottom = screen_height - margin
         safe_left = margin

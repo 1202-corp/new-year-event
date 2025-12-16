@@ -84,21 +84,36 @@ class Game:
         init_scaling(Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT)
         self._update_scaling()
         
-        # Fullscreen state (from config)
-        self.fullscreen = Config.FULLSCREEN
-        if self.fullscreen:
-            # Switch to fullscreen immediately
-            self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-            self._update_scaling()
-        
         # Game state
         self.state = GameState.PLAYING
         self.running = True
         
-        # Game components
+        # Game components (initialize before _update_scaling)
         self.characters: List[Character] = []
         self.spawner = CharacterSpawner()
         self.score_manager = ScoreManager()
+        
+        # Fullscreen state (from config) - use borderless windowed fullscreen
+        self.fullscreen = Config.FULLSCREEN
+        if self.fullscreen:
+            # Switch to borderless fullscreen (windowed fullscreen)
+            # Get screen dimensions
+            screen_info = pygame.display.Info()
+            # Use RESIZABLE flag for better compatibility, window will be maximized
+            # NOFRAME might not work on all systems, so we'll use a different approach
+            try:
+                self.screen = pygame.display.set_mode(
+                    (screen_info.current_w, screen_info.current_h),
+                    pygame.RESIZABLE | pygame.NOFRAME
+                )
+            except pygame.error:
+                # Fallback: use regular fullscreen if NOFRAME doesn't work
+                logger.warning("NOFRAME not supported, using regular fullscreen")
+                self.screen = pygame.display.set_mode(
+                    (screen_info.current_w, screen_info.current_h),
+                    pygame.RESIZABLE
+                )
+            self._update_scaling()
         
         # Spawn timing
         self.spawn_timer = 0.0
@@ -172,10 +187,23 @@ class Game:
         self.running = False
     
     def toggle_fullscreen(self) -> None:
-        """Toggles fullscreen mode"""
+        """Toggles fullscreen mode (borderless windowed)"""
         self.fullscreen = not self.fullscreen
         if self.fullscreen:
-            self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+            # Borderless windowed fullscreen
+            screen_info = pygame.display.Info()
+            try:
+                self.screen = pygame.display.set_mode(
+                    (screen_info.current_w, screen_info.current_h),
+                    pygame.RESIZABLE | pygame.NOFRAME
+                )
+            except pygame.error:
+                # Fallback: use regular fullscreen if NOFRAME doesn't work
+                logger.warning("NOFRAME not supported, using regular fullscreen")
+                self.screen = pygame.display.set_mode(
+                    (screen_info.current_w, screen_info.current_h),
+                    pygame.RESIZABLE
+                )
         else:
             self.screen = pygame.display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
         # Update scaling and all existing objects
@@ -231,15 +259,19 @@ class Game:
         
         # Update characters
         screen_width = self.screen.get_width()
+        screen_height = self.screen.get_height()
         for character in self.characters:
-            character.update(dt, screen_width=screen_width)
+            character.update(dt, screen_width=screen_width, screen_height=screen_height)
         
         # Cleanup off-screen characters (accounting for safe area)
         screen_width = self.screen.get_width()
+        screen_height = self.screen.get_height()
+        from game.safe_area import get_safe_area_margin
+        margin = get_safe_area_margin(screen_width, screen_height)
         # Remove characters that are past the right edge (including safe area)
         self.characters = self.spawner.cleanup_characters(
             self.characters, 
-            screen_width - Config.SAFE_AREA_MARGIN
+            screen_width - margin
         )
         
         # Spawn new characters
@@ -283,7 +315,8 @@ class Game:
         """Draws safe area borders (for projector edge cutoff)"""
         screen_width = self.screen.get_width()
         screen_height = self.screen.get_height()
-        margin = Config.SAFE_AREA_MARGIN
+        from game.safe_area import get_safe_area_margin
+        margin = get_safe_area_margin(screen_width, screen_height)
         
         # Draw safe area borders with background color
         # Top border

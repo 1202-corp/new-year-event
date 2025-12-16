@@ -55,19 +55,19 @@ class Character:
         }
         return color_map.get(self.type, WHITE)
     
-    def update(self, dt: float, screen_width: int = None) -> None:
+    def update(self, dt: float, screen_width: int = None, screen_height: int = None) -> None:
         """Updates character position, respecting safe area"""
         if not self.is_alive:
             return
-        
-        from game.config import Config
         
         # Move character
         new_x = self.x + self.speed * dt
         
         # Check if character would go outside safe area on the right
         if screen_width is not None:
-            safe_right = screen_width - Config.SAFE_AREA_MARGIN
+            from game.safe_area import get_safe_area_margin
+            margin = get_safe_area_margin(screen_width, screen_height)
+            safe_right = screen_width - margin
             # Allow character to move past safe area (they'll be cleaned up)
             # But don't let them spawn or stay in the safe area border
             if new_x > safe_right:
@@ -89,11 +89,11 @@ class Character:
         if not self.is_alive:
             return
         
-        from game.config import Config
+        from game.safe_area import get_safe_area_margin
         
         screen_width = screen.get_width()
         screen_height = screen.get_height()
-        margin = Config.SAFE_AREA_MARGIN
+        margin = get_safe_area_margin(screen_width, screen_height)
         
         # Check if character is completely outside safe area (shouldn't happen, but safety check)
         safe_left = margin

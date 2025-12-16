@@ -22,8 +22,8 @@ class Config:
     FPS: int = int(os.getenv("FPS", "60"))
     FULLSCREEN: bool = os.getenv("FULLSCREEN", "false").lower() == "true"
     
-    # Safe area settings
-    SAFE_AREA_MARGIN: int = int(os.getenv("SAFE_AREA_MARGIN", "10"))
+    # Safe area settings (percentage, 0-100)
+    SAFE_AREA_MARGIN_PERCENT: float = float(os.getenv("SAFE_AREA_MARGIN_PERCENT", "3.9"))
     
     # Camera settings
     CAMERA_INDEX: int = int(os.getenv("CAMERA_INDEX", "0"))
