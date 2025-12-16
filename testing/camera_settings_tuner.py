@@ -205,7 +205,11 @@ def main():
         except:
             pass
         
-        # Draw info on frame
+        # Draw info on frame (semi-transparent background for better readability)
+        overlay = frame.copy()
+        cv2.rectangle(overlay, (5, 5), (400, 280), (0, 0, 0), -1)
+        cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
+        
         info_text = [
             f"Resolution: {current_width}x{current_height}",
             f"Exposure: {exposure_val}",
@@ -224,7 +228,7 @@ def main():
             cv2.putText(frame, text, (10, y_offset + i * 25),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         
-        # Display frame
+        # Display frame (this shows the camera feed)
         cv2.imshow('Camera Settings Tuner', frame)
         
         # Handle keyboard input
