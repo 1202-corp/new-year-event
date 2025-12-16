@@ -20,6 +20,10 @@ class Game:
     """Main game class"""
     
     def __init__(self):
+        # Set SDL environment variables to prevent window minimization
+        # This must be done before pygame.init()
+        os.environ["SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS"] = "0"
+        
         # Initialize pygame (but don't create window yet)
         pygame.init()
         
@@ -205,6 +209,11 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+            
+            elif event.type == pygame.WINDOWFOCUSLOST:
+                # Prevent window from minimizing when focus is lost
+                # Keep window visible even when other windows are focused
+                logger.debug("Window lost focus, but keeping it visible")
             
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
