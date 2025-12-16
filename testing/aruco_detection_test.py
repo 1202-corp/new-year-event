@@ -22,8 +22,14 @@ def detect_aruco_markers(frame):
     aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
     aruco_params = cv2.aruco.DetectorParameters()
     
-    # Detect markers
-    corners, ids, rejected = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=aruco_params)
+    # Detect markers (new API for OpenCV 4.7+)
+    try:
+        # Try new API first (OpenCV 4.7+)
+        detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
+        corners, ids, rejected = detector.detectMarkers(gray)
+    except AttributeError:
+        # Fallback to old API (OpenCV < 4.7)
+        corners, ids, rejected = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=aruco_params)
     
     return corners, ids
 
@@ -131,8 +137,17 @@ def apply_perspective_transform(frame, src_points):
 def draw_markers(frame, corners, ids):
     """Draw detected markers on frame"""
     if ids is not None:
-        # Draw markers
-        cv2.aruco.drawDetectedMarkers(frame, corners, ids)
+        # Draw markers (new API for OpenCV 4.7+)
+        try:
+            # Try new API first (OpenCV 4.7+)
+            detector = cv2.aruco.ArucoDetector(cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50))
+            # New API doesn't have drawDetectedMarkers, draw manually
+            for i, corner in enumerate(corners):
+                corner = corner.astype(int)
+                cv2.polylines(frame, [corner], True, (0, 255, 0), 2)
+        except AttributeError:
+            # Fallback to old API (OpenCV < 4.7)
+            cv2.aruco.drawDetectedMarkers(frame, corners, ids)
         
         # Draw IDs
         for i, marker_id in enumerate(ids.flatten()):
