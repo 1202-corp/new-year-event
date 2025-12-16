@@ -190,8 +190,20 @@ def main():
     # Lower values = less exposure = darker but sharper
     camera.set(cv2.CAP_PROP_EXPOSURE, -6)  # Lower exposure value
     
+    # Set lower brightness/ISO (lower value = darker image, less noise)
+    # Typical range: 0-255 or 0-100 depending on camera
+    # Lower values = less brightness/ISO = darker but less noise
+    camera.set(cv2.CAP_PROP_BRIGHTNESS, 50)  # Lower brightness (default is usually 128)
+    
+    # Try to set ISO directly if supported
+    try:
+        camera.set(cv2.CAP_PROP_ISO_SPEED, 100)  # Lower ISO (if supported)
+    except:
+        pass  # Some cameras don't support direct ISO control
+    
     logger.info("Camera initialized. Press 'q' to quit.")
     logger.info(f"Camera exposure set to: {camera.get(cv2.CAP_PROP_EXPOSURE)}")
+    logger.info(f"Camera brightness set to: {camera.get(cv2.CAP_PROP_BRIGHTNESS)}")
     logger.info("Make sure 4 Aruco markers (ID: 0, 1, 2, 3) are visible in the frame.")
     
     while True:
