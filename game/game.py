@@ -340,6 +340,19 @@ class Game:
     
     def update(self, dt: float) -> None:
         """Updates game state"""
+        # During calibration, update Aruco detection for debug display
+        if self.state == GameState.CALIBRATING:
+            if self.aruco_transform is not None:
+                # Continuously update to show debug window with camera feed
+                screen_width = self.screen.get_width()
+                screen_height = self.screen.get_height()
+                self.aruco_transform.update(screen_width, screen_height)
+            return
+        
+        # Don't update during calibration preview
+        if self.state == GameState.CALIBRATION_PREVIEW:
+            return
+        
         if self.state != GameState.PLAYING:
             return
         
