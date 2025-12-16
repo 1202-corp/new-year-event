@@ -1,23 +1,29 @@
 """Character module"""
 import pygame
-from typing import Tuple
+from typing import Tuple, Optional
 from game.enums import CharacterType
 from game.constants import (
     WHITE, GREEN, RED, YELLOW, ORANGE, BLACK,
     CHARACTER_WIDTH, CHARACTER_HEIGHT
 )
+from game.scaling import get_scaling
 
 
 class Character:
     """Character class representing an enemy"""
     
-    def __init__(self, char_type: CharacterType, x: float, y: float, speed: float):
+    def __init__(self, char_type: CharacterType, x: float, y: float, speed: float, screen_height: Optional[int] = None):
         self.type = char_type
         self.x = x
         self.y = y
         self.speed = speed
-        self.width = CHARACTER_WIDTH
-        self.height = CHARACTER_HEIGHT
+        self.screen_height = screen_height
+        
+        # Scale character size
+        scaling = get_scaling()
+        self.width = int(scaling.scale_value(CHARACTER_WIDTH))
+        self.height = int(scaling.scale_value(CHARACTER_HEIGHT))
+        
         self.is_alive = True
         self.points = self._get_points()
         self.color = self._get_color()
@@ -58,7 +64,9 @@ class Character:
         pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
         
         # Add text label
-        font = pygame.font.Font(None, 24)
+        scaling = get_scaling()
+        font_size = scaling.scale_font_size(24)
+        font = pygame.font.Font(None, font_size)
         label = self._get_label()
         text = font.render(label, True, BLACK)
         text_rect = text.get_rect(center=(self.x + self.width // 2, self.y + self.height // 2))

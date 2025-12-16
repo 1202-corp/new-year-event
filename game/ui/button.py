@@ -2,6 +2,7 @@
 import pygame
 from typing import Callable, Optional, Tuple
 from game.constants import WHITE, BLACK, GRAY, LIGHT_GRAY, BUTTON_WIDTH, BUTTON_HEIGHT
+from game.scaling import get_scaling
 
 
 class Button:
@@ -23,7 +24,20 @@ class Button:
         self.text = text
         self.callback = callback
         self.is_hovered = False
-        self.font = pygame.font.Font(None, 36)
+        self._update_font()
+    
+    def _update_font(self) -> None:
+        """Updates font size based on scaling"""
+        scaling = get_scaling()
+        font_size = scaling.scale_font_size(36)
+        self.font = pygame.font.Font(None, font_size)
+    
+    def update_size(self) -> None:
+        """Updates button size based on scaling"""
+        scaling = get_scaling()
+        self.width = int(scaling.scale_value(BUTTON_WIDTH))
+        self.height = int(scaling.scale_value(BUTTON_HEIGHT))
+        self._update_font()
     
     def get_rect(self) -> pygame.Rect:
         """Returns button rectangle"""

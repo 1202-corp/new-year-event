@@ -9,6 +9,7 @@ from game.character import Character
 from game.spawner import CharacterSpawner
 from game.score import ScoreManager
 from game.ui.menu import PauseMenu
+from game.scaling import init_scaling, get_scaling
 
 
 class Game:
@@ -19,6 +20,10 @@ class Game:
         self.screen = pygame.display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
         pygame.display.set_caption("New Year Arcade Game")
         self.clock = pygame.time.Clock()
+        
+        # Initialize scaling
+        init_scaling(Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT)
+        self._update_scaling()
         
         # Fullscreen state
         self.fullscreen = False
@@ -36,9 +41,8 @@ class Game:
         self.spawn_timer = 0.0
         self.spawn_interval = Config.CHARACTER_SPAWN_INTERVAL
         
-        # UI
-        self.font_large = pygame.font.Font(None, 48)
-        self.font_small = pygame.font.Font(None, 24)
+        # UI fonts (will be updated based on scaling)
+        self._update_fonts()
         
         # Pause menu
         self.pause_menu = PauseMenu(
@@ -46,6 +50,18 @@ class Game:
             on_restart=self.restart_game,
             on_quit=self.quit_game
         )
+    
+    def _update_scaling(self) -> None:
+        """Updates scaling based on current screen size"""
+        scaling = get_scaling()
+        scaling.update(self.screen.get_width(), self.screen.get_height())
+        self._update_fonts()
+    
+    def _update_fonts(self) -> None:
+        """Updates font sizes based on current scaling"""
+        scaling = get_scaling()
+        self.font_large = pygame.font.Font(None, scaling.scale_font_size(48))
+        self.font_small = pygame.font.Font(None, scaling.scale_font_size(24))
     
     def resume_game(self) -> None:
         """Resumes the game from pause"""
@@ -69,6 +85,7 @@ class Game:
             self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         else:
             self.screen = pygame.display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
+        self._update_scaling()
     
     def handle_click(self, pos: Tuple[int, int]) -> None:
         """Handles mouse click"""
@@ -129,7 +146,8 @@ class Game:
         # Spawn new characters
         self.spawn_timer += dt
         if self.spawn_timer >= self.spawn_interval:
-            self.characters.append(self.spawner.spawn_character())
+            screen_height = self.screen.get_height()
+            self.characters.append(self.spawner.spawn_character(screen_height=screen_height))
             self.spawn_timer = 0.0
     
     def draw(self) -> None:
