@@ -47,18 +47,6 @@ class CameraThread(threading.Thread):
                 self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
                 self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
                 
-                # Set lower exposure (lower value = darker image, less motion blur)
-                self.camera.set(cv2.CAP_PROP_EXPOSURE, -6)  # Lower exposure value
-                
-                # Set lower brightness/ISO (lower value = darker image, less noise)
-                self.camera.set(cv2.CAP_PROP_BRIGHTNESS, 50)  # Lower brightness
-                
-                # Try to set ISO directly if supported
-                try:
-                    self.camera.set(cv2.CAP_PROP_ISO_SPEED, 100)  # Lower ISO (if supported)
-                except:
-                    pass  # Some cameras don't support direct ISO control
-                
                 self.camera_enabled = True
                 
                 # Verify format
