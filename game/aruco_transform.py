@@ -1,32 +1,14 @@
 """Aruco marker detection and perspective transformation for game display"""
-# Lazy import cv2 to avoid Qt initialization errors at import time
-# cv2 will be imported when actually needed
+import cv2
 import numpy as np
 from typing import Optional, Tuple
 from game.logger import get_logger
 
 logger = get_logger()
 
-# Aruco marker settings (will be set after cv2 import)
-ARUCO_DICT_TYPE = None  # Will be set to cv2.aruco.DICT_4X4_50 after cv2 import
+# Aruco marker settings
+ARUCO_DICT_TYPE = cv2.aruco.DICT_4X4_50
 ARUCO_MARKER_IDS = [0, 1, 2, 3]  # Expected marker IDs
-
-# Lazy cv2 import - will be imported when needed
-_cv2 = None
-
-def _get_cv2():
-    """Lazy import cv2 to avoid Qt initialization errors"""
-    global _cv2, ARUCO_DICT_TYPE
-    if _cv2 is None:
-        try:
-            import cv2
-            _cv2 = cv2
-            # Set ARUCO_DICT_TYPE after cv2 is imported
-            ARUCO_DICT_TYPE = cv2.aruco.DICT_4X4_50
-        except Exception as e:
-            logger.error(f"Failed to import cv2: {e}")
-            raise
-    return _cv2
 
 # Global storage for last known marker positions
 last_marker_positions = {0: None, 1: None, 2: None, 3: None}
@@ -41,8 +23,7 @@ class ArucoTransform:
         self.camera_height = camera_height
         self.camera = None
         
-        # Aruco detection (lazy import cv2)
-        cv2 = _get_cv2()
+        # Aruco detection
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT_TYPE)
         self.aruco_params = cv2.aruco.DetectorParameters()
         
@@ -55,9 +36,8 @@ class ArucoTransform:
         self.calibrated = False
         self.calibration_marker_positions = None  # Store marker positions after calibration
         
-        # Debug display - enable by default, will be disabled if windows can't be shown
-        self.debug_enabled = True  # Enable by default, disable if cv2.imshow fails
-        self._debug_initialized = False  # Track if debug windows were successfully initialized
+        # Debug display
+        self.debug_enabled = True  # Enable debug windows
         
         # Initialize camera
         self._init_camera()
@@ -65,7 +45,6 @@ class ArucoTransform:
     def _init_camera(self):
         """Initialize camera for Aruco detection"""
         try:
-            cv2 = _get_cv2()
             self.camera = cv2.VideoCapture(self.camera_index)
             if self.camera.isOpened():
                 # Set camera format to MJPEG for better performance
@@ -94,7 +73,6 @@ class ArucoTransform:
         """Detect Aruco markers in the frame"""
         global last_marker_positions
         
-        cv2 = _get_cv2()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
         # Detect markers (new API for OpenCV 4.7+)
@@ -187,7 +165,6 @@ class ArucoTransform:
         ], dtype=np.float32)
         
         # Calculate perspective transform matrix
-        cv2 = _get_cv2()
         self.transform_matrix = cv2.getPerspectiveTransform(src, dst_points)
         self.inverse_transform_matrix = cv2.getPerspectiveTransform(dst_points, src)
         self.transform_valid = True
@@ -252,6 +229,9 @@ class ArucoTransform:
         self._calculate_transform_from_positions()
         self.calibrated = True
         
+        # Close debug windows after successful calibration
+        self.close_debug_windows()
+        
         return True
     
     def _calculate_transform_from_positions(self):
@@ -312,7 +292,6 @@ class ArucoTransform:
         self._output_height = game_screen_height
         
         # Calculate perspective transform matrix
-        cv2 = _get_cv2()
         self.transform_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
         self.inverse_transform_matrix = cv2.getPerspectiveTransform(dst_points, src_points)
         self.transform_valid = True
@@ -407,7 +386,6 @@ class ArucoTransform:
         
         # Calculate perspective transform matrix
         # This transforms the rectangular game window to match the scaled Aruco marker corners
-        cv2 = _get_cv2()
         self.transform_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
         self.inverse_transform_matrix = cv2.getPerspectiveTransform(dst_points, src_points)
         self.transform_valid = True
@@ -424,19 +402,13 @@ class ArucoTransform:
         if not self.debug_enabled:
             return
         
-        cv2 = _get_cv2()
         # Create empty frame with message
         debug_frame = np.zeros((480, 640, 3), dtype=np.uint8)
         cv2.putText(debug_frame, "No camera frame", (50, 240),
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        try:
-            cv2.imshow("Aruco Debug: Camera View", debug_frame)
-            # Process OpenCV window events
-            cv2.waitKey(1)
-        except Exception as e:
-            logger.debug(f"Could not display debug window: {e}")
-            # Disable debug if windows can't be shown
-            self.debug_enabled = False
+        cv2.imshow("Aruco Debug: Camera View", debug_frame)
+        # Process OpenCV window events
+        cv2.waitKey(1)
     
     def _draw_debug(self, frame, corners, ids, top_left, top_right, bottom_right, bottom_left,
                    src_points=None, dst_points=None, game_width=None, game_height=None):
@@ -444,7 +416,6 @@ class ArucoTransform:
         if not self.debug_enabled:
             return
         
-        cv2 = _get_cv2()
         # Create debug frame (copy of original)
         debug_frame = frame.copy()
         h, w = debug_frame.shape[:2]
@@ -517,23 +488,10 @@ class ArucoTransform:
         
         # Resize for display (half size)
         small_frame = cv2.resize(debug_frame, (w // 2, h // 2))
-        try:
-            logger.debug(f"Attempting to show debug window (size: {small_frame.shape})")
-            cv2.imshow("Aruco Debug: Camera View", small_frame)
-            # Process OpenCV window events (required for window updates)
-            cv2.waitKey(1)
-            # Mark debug as successfully initialized on first successful call
-            if not self._debug_initialized:
-                self._debug_initialized = True
-                logger.info("Debug windows enabled successfully")
-        except Exception as e:
-            # Only log and disable on first failure
-            if not self._debug_initialized:
-                logger.warning(f"Could not display debug window: {e}. Debug windows disabled.")
-                import traceback
-                logger.warning(traceback.format_exc())
-                self.debug_enabled = False
-            return
+        cv2.imshow("Aruco Debug: Camera View", small_frame)
+        
+        # Process OpenCV window events (required for window updates)
+        cv2.waitKey(1)
         
         # Show transformed preview if transform is valid
         if self.transform_valid:
@@ -557,15 +515,9 @@ class ArucoTransform:
             if self.inverse_transform_matrix is not None:
                 transformed_preview = cv2.warpPerspective(test_rect, self.inverse_transform_matrix, (w, h))
                 small_preview = cv2.resize(transformed_preview, (w // 2, h // 2))
-                try:
-                    cv2.imshow("Aruco Debug: Transform Preview", small_preview)
-                    # Process OpenCV window events
-                    cv2.waitKey(1)
-                except Exception as e:
-                    # Only log on failure, don't disable if already initialized
-                    if not self._debug_initialized:
-                        logger.warning(f"Could not display transform preview: {e}")
-                        self.debug_enabled = False
+                cv2.imshow("Aruco Debug: Transform Preview", small_preview)
+                # Process OpenCV window events
+                cv2.waitKey(1)
     
     def apply_transform(self, game_surface: np.ndarray) -> Optional[np.ndarray]:
         """
@@ -581,7 +533,6 @@ class ArucoTransform:
         if not self.transform_valid or self.transform_matrix is None:
             return game_surface
         
-        cv2 = _get_cv2()
         # Get output dimensions from stored values
         if not hasattr(self, '_output_width') or not hasattr(self, '_output_height'):
             # Fallback: use input size
@@ -611,8 +562,19 @@ class ArucoTransform:
         """Check if transform is valid"""
         return self.transform_valid
     
+    def close_debug_windows(self):
+        """Close debug windows after calibration"""
+        try:
+            cv2.destroyWindow("Aruco Debug: Camera View")
+            cv2.destroyWindow("Aruco Debug: Transform Preview")
+        except:
+            pass  # Windows may not exist, ignore errors
+    
     def release(self):
         """Release camera resources"""
+        # Close debug windows when releasing
+        self.close_debug_windows()
+        
         if self.camera is not None:
             self.camera.release()
             self.camera = None

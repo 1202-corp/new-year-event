@@ -2,14 +2,6 @@
 import os
 import sys
 
-# CRITICAL: Disable Qt backend in OpenCV to prevent connection errors
-# OpenCV will try to use Qt for GUI, but Qt can't connect to display :2.0
-# Remove QT_PLUGIN_PATH to avoid plugin loading issues
-os.environ.pop("QT_PLUGIN_PATH", None)
-# Try to use GTK backend instead of Qt (if available)
-# This must be set BEFORE importing cv2 (which happens in game modules)
-os.environ["OPENCV_GUI_BACKEND"] = "GTK"
-
 # CRITICAL: Load .env and set DISPLAY BEFORE importing pygame
 # This must be done before any pygame imports
 from dotenv import load_dotenv
