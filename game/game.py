@@ -365,6 +365,33 @@ class Game:
         # Right border
         pygame.draw.rect(self.screen, DARK_BLUE, (screen_width - margin, 0, margin, game_area_height))
     
+    def draw_lane_lines(self) -> None:
+        """Draws visual lane lines (dark blue) to show where enemies move"""
+        screen_width = self.screen.get_width()
+        screen_height = self.screen.get_height()
+        ui_panel_height = self.ui_panel.panel_height
+        from game.safe_area import get_safe_area_margin
+        from game.config import Config
+        
+        margin = get_safe_area_margin(screen_width, screen_height, ui_panel_height)
+        available_height = screen_height - ui_panel_height - margin * 2
+        lane_spacing = available_height / (Config.NUM_LANES + 1)
+        
+        # Dark blue color for lane lines (slightly lighter than DARK_BLUE)
+        lane_color = (15, 25, 50)  # Dark blue-gray
+        
+        # Draw lines for each lane
+        for lane in range(Config.NUM_LANES):
+            y = margin + int(lane_spacing * (lane + 1))
+            # Draw horizontal line across the screen
+            pygame.draw.line(
+                self.screen,
+                lane_color,
+                (margin, y),
+                (screen_width - margin, y),
+                2  # Line width
+            )
+    
     def run(self) -> None:
         """Main game loop"""
         last_time = pygame.time.get_ticks()
