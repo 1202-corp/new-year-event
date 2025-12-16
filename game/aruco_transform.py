@@ -310,12 +310,14 @@ class ArucoTransform:
             except AttributeError:
                 cv2.aruco.drawDetectedMarkers(debug_frame, corners, ids)
             
-            # Draw IDs
+            # Draw IDs and centers
             for i, marker_id in enumerate(ids.flatten()):
                 if marker_id in ARUCO_MARKER_IDS:
                     corner_points = corners[i][0]
                     center = np.mean(corner_points, axis=0).astype(int)
-                    cv2.putText(debug_frame, f"ID:{marker_id}", tuple(center),
+                    # Draw center point
+                    cv2.circle(debug_frame, tuple(center), 8, (255, 255, 255), -1)
+                    cv2.putText(debug_frame, f"ID:{marker_id}", tuple(center + [15, -10]),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         
         # Draw corner points and labels
