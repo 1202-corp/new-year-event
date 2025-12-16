@@ -19,6 +19,9 @@ class Game:
         pygame.display.set_caption("New Year Arcade Game")
         self.clock = pygame.time.Clock()
         
+        # Fullscreen state
+        self.fullscreen = False
+        
         # Game state
         self.state = GameState.PLAYING
         self.running = True
@@ -58,6 +61,14 @@ class Game:
         """Quits the game"""
         self.running = False
     
+    def toggle_fullscreen(self) -> None:
+        """Toggles fullscreen mode"""
+        self.fullscreen = not self.fullscreen
+        if self.fullscreen:
+            self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        else:
+            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    
     def handle_click(self, pos: Tuple[int, int]) -> None:
         """Handles mouse click"""
         if self.state != GameState.PLAYING:
@@ -83,6 +94,13 @@ class Game:
                         self.state = GameState.PAUSED
                     elif self.state == GameState.PAUSED:
                         self.state = GameState.PLAYING
+                elif event.key == pygame.K_F11:
+                    self.toggle_fullscreen()
+                elif event.key == pygame.K_RETURN:
+                    # Check if ALT is pressed
+                    mods = pygame.key.get_mods()
+                    if mods & pygame.KMOD_ALT:
+                        self.toggle_fullscreen()
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left mouse button
@@ -104,7 +122,8 @@ class Game:
             character.update(dt)
         
         # Cleanup off-screen characters
-        self.characters = self.spawner.cleanup_characters(self.characters, SCREEN_WIDTH)
+        screen_width = self.screen.get_width()
+        self.characters = self.spawner.cleanup_characters(self.characters, screen_width)
         
         # Spawn new characters
         self.spawn_timer += dt
@@ -138,8 +157,12 @@ class Game:
         
         # Instructions
         if self.state == GameState.PLAYING:
-            instruction_text = self.font_small.render("Click on characters to kill them | ESC to pause", True, WHITE)
-            self.screen.blit(instruction_text, (20, SCREEN_HEIGHT - 40))
+            screen_height = self.screen.get_height()
+            instruction_text = self.font_small.render(
+                "Click on characters to kill them | ESC to pause | F11/ALT+ENTER for fullscreen",
+                True, WHITE
+            )
+            self.screen.blit(instruction_text, (20, screen_height - 40))
     
     def run(self) -> None:
         """Main game loop"""
