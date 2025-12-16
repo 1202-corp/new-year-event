@@ -330,7 +330,9 @@ class Game:
         
         # Draw UI panel (bottom)
         alive_count = sum(1 for c in self.characters if c.is_alive)
-        self.ui_panel.draw(self.screen, self.score_manager.get_score(), alive_count, Config.MAX_ENEMIES)
+        # Maximum enemies = MAX_ENEMIES per lane * NUM_LANES
+        max_total_enemies = Config.MAX_ENEMIES * Config.NUM_LANES
+        self.ui_panel.draw(self.screen, self.score_manager.get_score(), alive_count, max_total_enemies)
         
         # Draw UI (currently disabled)
         self.draw_ui()
