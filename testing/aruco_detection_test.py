@@ -185,7 +185,13 @@ def main():
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, Config.SNOWBALL_CAMERA_WIDTH)
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, Config.SNOWBALL_CAMERA_HEIGHT)
     
+    # Set lower exposure (lower value = darker image, less motion blur)
+    # Typical range: -13 to -1 (auto), or 1-10000 (manual)
+    # Lower values = less exposure = darker but sharper
+    camera.set(cv2.CAP_PROP_EXPOSURE, -6)  # Lower exposure value
+    
     logger.info("Camera initialized. Press 'q' to quit.")
+    logger.info(f"Camera exposure set to: {camera.get(cv2.CAP_PROP_EXPOSURE)}")
     logger.info("Make sure 4 Aruco markers (ID: 0, 1, 2, 3) are visible in the frame.")
     
     while True:
