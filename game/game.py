@@ -628,7 +628,7 @@ class Game:
         }
     
     def _show_collision_debug(self, result: dict, original_frame) -> None:
-        """Show 3 debug windows horizontally: original camera, transformed, motion mask"""
+        """Show 3 separate debug windows: original camera, transformed, motion mask"""
         try:
             import cv2
             import numpy as np
@@ -656,46 +656,30 @@ class Game:
                 mask_colored_overlay[result['game_objects_mask'] > 0] = [0, 255, 0]
                 transformed_frame = cv2.addWeighted(transformed_frame, 0.8, mask_colored_overlay, 0.2, 0)
             
-            # Resize all to same height (use transformed frame height as reference)
-            target_h = transformed_frame.shape[0]
+            # Resize all for display (half size)
+            h1, w1 = original_camera.shape[:2]
+            original_resized = cv2.resize(original_camera, (w1 // 2, h1 // 2))
             
-            # Resize original camera
-            original_h, original_w = original_camera.shape[:2]
-            original_ratio = original_w / original_h
-            new_original_w = int(target_h * original_ratio)
-            original_camera_resized = cv2.resize(original_camera, (new_original_w, target_h))
+            h2, w2 = transformed_frame.shape[:2]
+            transformed_resized = cv2.resize(transformed_frame, (w2 // 2, h2 // 2))
             
-            # Resize motion mask
-            motion_h, motion_w = motion_mask.shape[:2]
-            motion_ratio = motion_w / motion_h
-            new_motion_w = int(target_h * motion_ratio)
-            motion_colored_resized = cv2.resize(motion_colored, (new_motion_w, target_h))
+            h3, w3 = motion_colored.shape[:2]
+            motion_resized = cv2.resize(motion_colored, (w3 // 2, h3 // 2))
             
             # Add labels
-            cv2.putText(original_camera_resized, "Original Camera", (10, 30),
+            cv2.putText(original_resized, "Original Camera", (10, 30),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             
-            cv2.putText(transformed_frame, "Transformed (Aruco)", (10, 30),
+            cv2.putText(transformed_resized, "Transformed (Aruco)", (10, 30),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             
-            cv2.putText(motion_colored_resized, "Motion Mask", (10, 30),
+            cv2.putText(motion_resized, "Motion Mask", (10, 30),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             
-            # Combine horizontally: original camera, transformed camera, motion mask
-            total_width = new_original_w + transformed_frame.shape[1] + new_motion_w
-            combined = np.zeros((target_h, total_width, 3), dtype=np.uint8)
-            
-            x_offset = 0
-            combined[:, x_offset:x_offset + new_original_w] = original_camera_resized
-            x_offset += new_original_w
-            combined[:, x_offset:x_offset + transformed_frame.shape[1]] = transformed_frame
-            x_offset += transformed_frame.shape[1]
-            combined[:, x_offset:x_offset + new_motion_w] = motion_colored_resized
-            
-            # Resize for display
-            h, w = combined.shape[:2]
-            small_combined = cv2.resize(combined, (w // 2, h // 2))
-            cv2.imshow("Motion Detection: Original | Transformed | Motion Mask", small_combined)
+            # Show 3 separate windows
+            cv2.imshow("1. Original Camera", original_resized)
+            cv2.imshow("2. Transformed Camera (Aruco)", transformed_resized)
+            cv2.imshow("3. Motion Mask", motion_resized)
             cv2.waitKey(1)
         except Exception as e:
             logger.debug(f"Error showing collision debug: {e}")
