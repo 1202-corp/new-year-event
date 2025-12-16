@@ -14,6 +14,7 @@ from game.ui_panel import UIPanel
 from game.scaling import init_scaling, get_scaling
 from game.logger import get_logger
 from game.aruco_transform import ArucoTransform
+from game.wall_collision_detector import WallCollisionDetector
 
 logger = get_logger()
 
@@ -141,6 +142,16 @@ class Game:
             except Exception as e:
                 logger.warning(f"Failed to initialize Aruco transform: {e}")
                 self.aruco_transform = None
+        
+        # Wall collision detector (for ball detection)
+        self.wall_collision_detector = None
+        if Config.VISION_ENABLED and self.aruco_transform:
+            try:
+                self.wall_collision_detector = WallCollisionDetector(aruco_transform=self.aruco_transform)
+                logger.info("Wall collision detector enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize wall collision detector: {e}")
+                self.wall_collision_detector = None
         
         # Create calibration test characters (random positions for calibration screen)
         self.calibration_characters = []
@@ -366,6 +377,27 @@ class Game:
         
         for character in self.characters:
             character.update(dt, screen_width=game_area_width, screen_height=screen_height)
+        
+        # Update wall collision detector if enabled
+        if self.wall_collision_detector and self.aruco_transform and self.aruco_transform.calibrated:
+            # Read frame from snowball camera
+            try:
+                import cv2
+                camera = cv2.VideoCapture(Config.SNOWBALL_CAMERA_INDEX)
+                if camera.isOpened():
+                    ret, frame = camera.read()
+                    if ret:
+                        # Get game objects positions for masking
+                        game_objects = self._get_game_objects_for_detector()
+                        
+                        # Detect collision
+                        result = self.wall_collision_detector.detect_collision(frame, game_objects)
+                        
+                        # Show debug windows (3 horizontally)
+                        self._show_collision_debug(result, frame)
+                    camera.release()
+            except Exception as e:
+                logger.debug(f"Error in wall collision detection: {e}")
         
         # Cleanup off-screen characters (only flying type)
         self.characters = self.spawner.cleanup_characters(self.characters, game_area_width)

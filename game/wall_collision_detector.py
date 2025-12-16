@@ -197,15 +197,43 @@ class WallCollisionDetector:
                 - transformed_frame: Transformed frame (if Aruco available)
                 - original_frame: Original camera frame
         """
-        # Transform frame to game space if Aruco transform is available
+        # Transform frame to game space using Aruco markers (like in aruco_detection_test.py)
         original_frame = frame.copy()
-        if self.aruco_transform and self.aruco_transform.transform_valid:
-            # Transform frame to game space using Aruco markers
-            transformed_frame = self.aruco_transform.apply_transform(frame)
-            if transformed_frame is None:
-                transformed_frame = frame
-        else:
-            transformed_frame = frame
+        transformed_frame = frame.copy()
+        
+        if self.aruco_transform and self.aruco_transform.calibrated:
+            # Use stored calibration positions for transform
+            if self.aruco_transform.calibration_marker_positions is not None:
+                calib = self.aruco_transform.calibration_marker_positions
+                game_width = calib['game_screen_width']
+                game_height = calib['game_screen_height']
+                
+                top_left = calib['top_left']
+                top_right = calib['top_right']
+                bottom_right = calib['bottom_right']
+                bottom_left = calib['bottom_left']
+                
+                # Destination points (output rectangle - game screen size)
+                dst_points = np.array([
+                    [0, 0],           # Top-left
+                    [game_width, 0],           # Top-right
+                    [game_width, game_height],           # Bottom-right
+                    [0, game_height]            # Bottom-left
+                ], dtype=np.float32)
+                
+                # Source points (Aruco marker corners from camera view)
+                src_points = np.array([
+                    top_left,         # Top-left
+                    top_right,        # Top-right
+                    bottom_right,     # Bottom-right
+                    bottom_left       # Bottom-left
+                ], dtype=np.float32)
+                
+                # Calculate perspective transform matrix
+                matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+                
+                # Apply transformation to original camera frame
+                transformed_frame = cv2.warpPerspective(frame, matrix, (game_width, game_height))
         
         # Create mask of known game objects
         game_objects_mask = self.create_game_object_mask(
