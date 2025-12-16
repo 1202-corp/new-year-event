@@ -430,10 +430,10 @@ class Game:
         self.draw_lane_lines()
         
         # Draw calibration characters (frozen)
-        ui_panel_height = self.ui_panel.panel_height
+        ui_panel_width = self.ui_panel.panel_width
         sorted_characters = sorted(self.calibration_characters, key=lambda c: (c.y + c.height_offset))
         for character in sorted_characters:
-            character.draw(self.screen, ui_panel_height=ui_panel_height)
+            character.draw(self.screen, ui_panel_width=ui_panel_width)
         
         # Draw UI panel
         self.ui_panel.draw(self.screen, 0, len(self.calibration_characters), len(self.calibration_characters))
@@ -446,12 +446,12 @@ class Game:
         # Draw lane lines (visual guides)
         self.draw_lane_lines()
         
-        # Draw characters (only in game area, above UI panel)
+        # Draw characters (only in game area, excluding vertical UI panel)
         # Sort by Y position to draw shadows correctly (back to front)
-        ui_panel_height = self.ui_panel.panel_height
+        ui_panel_width = self.ui_panel.panel_width
         sorted_characters = sorted(self.characters, key=lambda c: (c.y + c.height_offset) if c.is_alive else 0)
         for character in sorted_characters:
-            character.draw(self.screen, ui_panel_height=ui_panel_height)
+            character.draw(self.screen, ui_panel_width=ui_panel_width)
         
         # Draw UI panel (bottom)
         alive_count = sum(1 for c in self.characters if c.is_alive)

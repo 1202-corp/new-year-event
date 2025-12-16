@@ -138,7 +138,7 @@ class Character:
         # Speed should NOT scale - keep original speed
         self.speed = self.base_speed
     
-    def draw(self, screen: pygame.Surface, ui_panel_height: int = 0) -> None:
+    def draw(self, screen: pygame.Surface, ui_panel_width: int = 0) -> None:
         """Draws the character, ensuring it doesn't draw in safe area borders or UI panel"""
         if not self.is_alive:
             return
@@ -147,13 +147,15 @@ class Character:
         
         screen_width = screen.get_width()
         screen_height = screen.get_height()
-        margin = get_safe_area_margin(screen_width, screen_height, ui_panel_height)
+        margin = get_safe_area_margin(screen_width, screen_height, 0)
         
         # Check if character is completely outside safe area (shouldn't happen, but safety check)
+        # Panel is now vertical on right, so exclude it from width
+        game_area_width = screen_width - ui_panel_width
         safe_left = margin
-        safe_right = screen_width - margin
+        safe_right = game_area_width - margin  # Don't draw in vertical UI panel area
         safe_top = margin
-        safe_bottom = screen_height - ui_panel_height - margin  # Don't draw in UI panel area
+        safe_bottom = screen_height - margin
         
         # For flying characters, allow drawing even if partially off screen
         # For patrolling characters, don't draw if in safe area borders
