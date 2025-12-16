@@ -20,7 +20,7 @@ class Game:
     """Main game class"""
     
     def __init__(self):
-        # Initialize pygame
+        # Initialize pygame (but don't create window yet)
         pygame.init()
         
         # Check available displays and get info
@@ -61,27 +61,22 @@ class Game:
             logger.error(f"Could not query displays: {e}")
         
         # Set window position BEFORE creating window (SDL approach)
+        # SDL_VIDEO_WINDOW_POS must be set before set_mode()
         if display_to_use > 0 and display_x_offset > 0:
             # SDL_VIDEO_WINDOW_POS format: "x,y" or "x" for x only
             window_pos = f"{display_x_offset},0"
             os.environ["SDL_VIDEO_WINDOW_POS"] = window_pos
-            logger.info(f"Setting SDL_VIDEO_WINDOW_POS to: {window_pos}")
+            logger.info(f"Setting SDL_VIDEO_WINDOW_POS to: {window_pos} (before window creation)")
+        elif display_to_use == 0:
+            # Clear SDL_VIDEO_WINDOW_POS for display 0 to use default positioning
+            if "SDL_VIDEO_WINDOW_POS" in os.environ:
+                del os.environ["SDL_VIDEO_WINDOW_POS"]
         
-        # Create window
+        # Create window (SDL_VIDEO_WINDOW_POS will be used here)
         self.screen = pygame.display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
         pygame.display.set_caption("New Year Arcade Game")
         
-        # Try to position window after creation (fallback method)
-        if display_to_use > 0 and display_x_offset > 0:
-            try:
-                # Use window manager info to position window
-                window_info = pygame.display.get_wm_info()
-                logger.debug(f"Window info: {window_info}")
-                
-                # Window created - SDL_VIDEO_WINDOW_POS should have positioned it
-                logger.info("Window created, positioned using SDL_VIDEO_WINDOW_POS")
-            except Exception as e:
-                logger.debug(f"Could not get window info: {e}")
+        logger.info("Window created")
         
         self.clock = pygame.time.Clock()
         
