@@ -203,17 +203,34 @@ class Game:
         self.fullscreen = not self.fullscreen
         if self.fullscreen:
             # Borderless windowed fullscreen
-            screen_info = pygame.display.Info()
-            screen_width = screen_info.current_w
-            screen_height = screen_info.current_h
+            # Get the display that the window is currently on
+            try:
+                num_displays = pygame.display.get_num_displays()
+                if num_displays > 0:
+                    # Get desktop size for current display
+                    desktop_sizes = pygame.display.get_desktop_sizes()
+                    display_index = min(Config.DISPLAY_NUMBER, len(desktop_sizes) - 1)
+                    screen_width, screen_height = desktop_sizes[display_index]
+                else:
+                    # Fallback to screen info
+                    screen_info = pygame.display.Info()
+                    screen_width = screen_info.current_w
+                    screen_height = screen_info.current_h
+            except Exception as e:
+                logger.warning(f"Could not get desktop size: {e}, using screen info")
+                screen_info = pygame.display.Info()
+                screen_width = screen_info.current_w
+                screen_height = screen_info.current_h
             
             logger.info(f"Toggling to borderless fullscreen: {screen_width}x{screen_height}")
             
+            # Set window to full screen size with NOFRAME (no borders)
             try:
                 self.screen = pygame.display.set_mode(
                     (screen_width, screen_height),
                     pygame.NOFRAME
                 )
+                logger.info(f"Borderless fullscreen activated: {self.screen.get_width()}x{self.screen.get_height()}")
             except pygame.error as e:
                 logger.warning(f"NOFRAME failed: {e}, trying with RESIZABLE")
                 try:
@@ -221,6 +238,7 @@ class Game:
                         (screen_width, screen_height),
                         pygame.RESIZABLE | pygame.NOFRAME
                     )
+                    logger.info(f"Borderless fullscreen activated with RESIZABLE: {self.screen.get_width()}x{self.screen.get_height()}")
                 except pygame.error as e2:
                     logger.warning(f"Borderless fullscreen not supported: {e2}, using regular fullscreen")
                     self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
