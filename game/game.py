@@ -104,6 +104,12 @@ class Game:
             self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
             logger.info("Fullscreen mode activated")
         
+        # UI Panel (bottom RPG-style panel) - must be created before _update_scaling()
+        self.ui_panel = UIPanel(
+            self.screen.get_width(),
+            self.screen.get_height()
+        )
+        
         # Update scaling after window is set up
         self._update_scaling()
         
@@ -120,12 +126,6 @@ class Game:
             on_restart=self.restart_game,
             on_quit=self.quit_game
         )
-        
-        # UI Panel (bottom RPG-style panel)
-        self.ui_panel = UIPanel(
-            self.screen.get_width(),
-            self.screen.get_height()
-        )
     
     def _update_scaling(self) -> None:
         """Updates scaling based on current screen size and updates all existing objects"""
@@ -140,8 +140,9 @@ class Game:
         scaling.update(new_width, new_height)
         self._update_fonts()
         
-        # Update UI panel with new screen dimensions
-        self.ui_panel.update(new_width, new_height)
+        # Update UI panel with new screen dimensions (if it exists)
+        if hasattr(self, 'ui_panel'):
+            self.ui_panel.update(new_width, new_height)
         
         # Update all existing characters to match new scale
         # Only scale if we had a previous size (not first initialization)

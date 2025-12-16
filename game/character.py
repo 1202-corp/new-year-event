@@ -37,6 +37,8 @@ class Character:
         # For patrolling characters
         self.patrol_change_timer = 0.0
         self.patrol_change_interval = random.uniform(2.0, 5.0)  # Change direction every 2-5 seconds
+        self.current_speed = speed  # Current speed (can vary)
+        self.speed_variation = 0.3  # Speed can vary by ±30%
         
         # Scale character size
         scaling = get_scaling()
@@ -96,20 +98,30 @@ class Character:
             self.patrol_change_timer += dt
             
             # Check if at edge
+            direction_changed = False
             if self.x <= safe_left:
                 self.direction = 1
                 self.patrol_change_timer = 0.0
+                direction_changed = True
             elif self.x + self.width >= safe_right:
                 self.direction = -1
                 self.patrol_change_timer = 0.0
+                direction_changed = True
             # Random direction change
             elif self.patrol_change_timer >= self.patrol_change_interval:
                 self.direction = random.choice([-1, 1])
                 self.patrol_change_timer = 0.0
                 self.patrol_change_interval = random.uniform(2.0, 5.0)
+                direction_changed = True
             
-            # Move in current direction
-            self.x += self.speed * self.direction * dt
+            # Change speed when direction changes
+            if direction_changed:
+                # Random speed variation: base_speed * (1 ± speed_variation)
+                speed_multiplier = random.uniform(1.0 - self.speed_variation, 1.0 + self.speed_variation)
+                self.current_speed = self.base_speed * speed_multiplier
+            
+            # Move in current direction with current speed
+            self.x += self.current_speed * self.direction * dt
             
             # Keep within bounds
             self.x = max(safe_left, min(self.x, safe_right - self.width))
