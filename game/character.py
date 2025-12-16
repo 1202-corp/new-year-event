@@ -173,7 +173,7 @@ class Character:
         
         # Draw shadow first (below character)
         # Shadow is a scaled-up version of the character shape (square/rectangle)
-        shadow_scale = 1.4  # Shadow is 40% larger (increased from 15%)
+        shadow_scale = 1.2  # Shadow is 20% larger (reduced from 40%)
         shadow_width = int(self.width * shadow_scale)
         shadow_height = int(self.height * shadow_scale)
         
@@ -198,8 +198,8 @@ class Character:
             layer_x = (shadow_width - layer_width) // 2
             layer_y = (shadow_height - layer_height) // 2
             
-            # Decrease alpha for outer layers (softer edges)
-            layer_alpha = max(30, 100 - (i * 15))  # More transparent (increased transparency)
+            # Decrease alpha for outer layers (softer edges) - more transparent
+            layer_alpha = max(15, 60 - (i * 10))  # Much more transparent (reduced from 30-100 to 15-60)
             layer_color = (*shadow_base_color, layer_alpha)
             
             # Draw layer
