@@ -53,15 +53,6 @@ class ArucoTransform:
                 self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
                 self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
                 
-                # Set lower exposure and brightness for better marker detection
-                self.camera.set(cv2.CAP_PROP_EXPOSURE, -6)
-                self.camera.set(cv2.CAP_PROP_BRIGHTNESS, 50)
-                
-                try:
-                    self.camera.set(cv2.CAP_PROP_ISO_SPEED, 100)
-                except:
-                    pass
-                
                 logger.info(f"Aruco camera {self.camera_index} initialized")
             else:
                 logger.warning(f"Could not open Aruco camera {self.camera_index}")
