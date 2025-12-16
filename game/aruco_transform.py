@@ -45,6 +45,7 @@ class ArucoTransform:
     def _init_camera(self):
         """Initialize camera for Aruco detection"""
         try:
+            from game.config import Config
             self.camera = cv2.VideoCapture(self.camera_index)
             if self.camera.isOpened():
                 # Set camera format to MJPEG for better performance
@@ -52,6 +53,12 @@ class ArucoTransform:
                 self.camera.set(cv2.CAP_PROP_FOURCC, fourcc)
                 self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
                 self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
+                
+                # Apply camera quality settings from config
+                self.camera.set(cv2.CAP_PROP_BRIGHTNESS, Config.SNOWBALL_CAMERA_BRIGHTNESS)
+                self.camera.set(cv2.CAP_PROP_CONTRAST, Config.SNOWBALL_CAMERA_CONTRAST)
+                self.camera.set(cv2.CAP_PROP_SATURATION, Config.SNOWBALL_CAMERA_SATURATION)
+                self.camera.set(cv2.CAP_PROP_SHARPNESS, Config.SNOWBALL_CAMERA_SHARPNESS)
                 
                 logger.info(f"Aruco camera {self.camera_index} initialized")
             else:

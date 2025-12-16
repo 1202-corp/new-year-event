@@ -40,6 +40,12 @@ class Config:
     SNOWBALL_CAMERA_WIDTH: int = int(os.getenv("SNOWBALL_CAMERA_WIDTH", "1920"))
     SNOWBALL_CAMERA_HEIGHT: int = int(os.getenv("SNOWBALL_CAMERA_HEIGHT", "1080"))
     
+    # Camera quality settings (for snowball/Aruco detection camera)
+    SNOWBALL_CAMERA_BRIGHTNESS: float = float(os.getenv("SNOWBALL_CAMERA_BRIGHTNESS", "42.0"))
+    SNOWBALL_CAMERA_CONTRAST: float = float(os.getenv("SNOWBALL_CAMERA_CONTRAST", "128.0"))
+    SNOWBALL_CAMERA_SATURATION: float = float(os.getenv("SNOWBALL_CAMERA_SATURATION", "53.0"))
+    SNOWBALL_CAMERA_SHARPNESS: float = float(os.getenv("SNOWBALL_CAMERA_SHARPNESS", "255.0"))
+    
     # Camera settings for audience face display
     AUDIENCE_CAMERA_INDEX: int = int(os.getenv("AUDIENCE_CAMERA_INDEX", "1"))
     AUDIENCE_CAMERA_WIDTH: int = int(os.getenv("AUDIENCE_CAMERA_WIDTH", "1920"))

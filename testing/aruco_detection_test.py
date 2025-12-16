@@ -191,6 +191,12 @@ def main():
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, Config.SNOWBALL_CAMERA_WIDTH)
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, Config.SNOWBALL_CAMERA_HEIGHT)
     
+    # Apply camera quality settings from config
+    camera.set(cv2.CAP_PROP_BRIGHTNESS, Config.SNOWBALL_CAMERA_BRIGHTNESS)
+    camera.set(cv2.CAP_PROP_CONTRAST, Config.SNOWBALL_CAMERA_CONTRAST)
+    camera.set(cv2.CAP_PROP_SATURATION, Config.SNOWBALL_CAMERA_SATURATION)
+    camera.set(cv2.CAP_PROP_SHARPNESS, Config.SNOWBALL_CAMERA_SHARPNESS)
+    
     # Verify format
     current_fourcc = int(camera.get(cv2.CAP_PROP_FOURCC))
     fourcc_str = "".join([chr((current_fourcc >> 8 * i) & 0xFF) for i in range(4)])
