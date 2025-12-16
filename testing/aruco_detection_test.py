@@ -12,6 +12,9 @@ from game.logger import get_logger
 
 logger = get_logger()
 
+# Global storage for last known marker positions
+last_marker_positions = {0: None, 1: None, 2: None, 3: None}
+
 
 def detect_aruco_markers(frame):
     """Detect Aruco markers in the frame"""
@@ -38,19 +41,27 @@ def determine_corners(corners, ids):
     """
     Determine which marker belongs to which corner.
     Expected IDs: 0, 1, 2, 3
-    Returns: top_left, top_right, bottom_right, bottom_left (corners)
+    Returns: top_left, top_right, bottom_right, bottom_left (centers)
+    Uses last known positions if markers are temporarily lost.
     """
-    if ids is None or len(ids) != 4:
-        return None, None, None, None
+    global last_marker_positions
     
-    # Get center points of each marker
+    # Get center points of each marker from current frame
     marker_centers = {}
-    for i, marker_id in enumerate(ids.flatten()):
-        if marker_id in [0, 1, 2, 3]:
-            # Calculate center of marker
-            corner_points = corners[i][0]
-            center = np.mean(corner_points, axis=0)
-            marker_centers[marker_id] = center
+    if ids is not None:
+        for i, marker_id in enumerate(ids.flatten()):
+            if marker_id in [0, 1, 2, 3]:
+                # Calculate center of marker
+                corner_points = corners[i][0]
+                center = np.mean(corner_points, axis=0)
+                marker_centers[marker_id] = center
+                # Update last known position
+                last_marker_positions[marker_id] = center
+    
+    # Use last known positions for missing markers
+    for marker_id in [0, 1, 2, 3]:
+        if marker_id not in marker_centers and last_marker_positions[marker_id] is not None:
+            marker_centers[marker_id] = last_marker_positions[marker_id]
     
     if len(marker_centers) != 4:
         return None, None, None, None
