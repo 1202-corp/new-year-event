@@ -21,9 +21,18 @@ class MultiMethodDetector:
         self.bg_subtractor_mog2 = cv2.createBackgroundSubtractorMOG2(
             history=500, varThreshold=50, detectShadows=True
         )
-        self.bg_subtractor_gmg = cv2.createBackgroundSubtractorGMG(
-            initializationFrames=120, decisionThreshold=0.8
-        )
+        
+        # GMG is in cv2.bgsegm module, try to use it if available
+        try:
+            self.bg_subtractor_gmg = cv2.bgsegm.createBackgroundSubtractorGMG(
+                initializationFrames=120, decisionThreshold=0.8
+            )
+            self.gmg_available = True
+        except (AttributeError, cv2.error):
+            # GMG not available, skip it
+            self.bg_subtractor_gmg = None
+            self.gmg_available = False
+            logger.warning("GMG background subtractor not available, skipping this method")
         
         # For optical flow
         self.prev_gray = None
@@ -162,6 +171,9 @@ class MultiMethodDetector:
     
     def detect_background_subtraction_gmg(self, frame):
         """Method 4: Background subtraction using GMG"""
+        if not self.gmg_available or self.bg_subtractor_gmg is None:
+            return frame.copy(), [], None
+        
         fg_mask = self.bg_subtractor_gmg.apply(frame)
         
         # Morphological operations
@@ -368,9 +380,9 @@ class MultiMethodDetector:
         frame3, det3, mask3 = self.detect_background_subtraction_mog2(frame)
         results['mog2'] = {'frame': frame3, 'detections': det3, 'debug': mask3}
         
-        # Method 4: GMG
+        # Method 4: GMG (if available)
         frame4, det4, mask4 = self.detect_background_subtraction_gmg(frame)
-        results['gmg'] = {'frame': frame4, 'detections': det4, 'debug': mask4}
+        results['gmg'] = {'frame': frame4, 'detections': det4, 'debug': mask4, 'available': self.gmg_available}
         
         # Method 5: Frame Difference
         frame5, det5, diff5 = self.detect_frame_difference(frame)
@@ -453,10 +465,11 @@ def main():
         if results['mog2']['debug'] is not None:
             cv2.imshow("3b. MOG2 Mask", resize_for_display(results['mog2']['debug']))
         
-        # Method 4: GMG
-        cv2.imshow("4. GMG Background", resize_for_display(results['gmg']['frame']))
-        if results['gmg']['debug'] is not None:
-            cv2.imshow("4b. GMG Mask", resize_for_display(results['gmg']['debug']))
+        # Method 4: GMG (if available)
+        if results['gmg']['available']:
+            cv2.imshow("4. GMG Background", resize_for_display(results['gmg']['frame']))
+            if results['gmg']['debug'] is not None:
+                cv2.imshow("4b. GMG Mask", resize_for_display(results['gmg']['debug']))
         
         # Method 5: Frame Difference
         cv2.imshow("5. Frame Difference", resize_for_display(results['framediff']['frame']))
