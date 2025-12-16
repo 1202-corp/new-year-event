@@ -91,43 +91,43 @@ class ArucoTransform:
         return corners, ids
     
     def determine_corners(self, corners, ids, screen_center):
-        """Determine which marker belongs to which corner (using inner corners)"""
+        """Determine which marker belongs to which corner (using marker centers)"""
         global last_marker_positions
         
-        # Get corner points (closest to screen center = inner corner) of each marker
-        marker_corners = {}
+        # Get center points of each marker (not corners!)
+        marker_centers = {}
         if ids is not None:
             for i, marker_id in enumerate(ids.flatten()):
                 if marker_id in ARUCO_MARKER_IDS:
-                    # Get corner closest to screen center (inner corner)
+                    # Get center of marker (average of all 4 corners)
                     corner_points = corners[i][0]
-                    closest_corner = self.get_closest_corner_to_center(corner_points, screen_center)
-                    marker_corners[marker_id] = closest_corner
+                    center = np.mean(corner_points, axis=0)
+                    marker_centers[marker_id] = center
                     # Update last known position
-                    last_marker_positions[marker_id] = closest_corner
+                    last_marker_positions[marker_id] = center
         
         # Use last known positions for missing markers
         for marker_id in ARUCO_MARKER_IDS:
-            if marker_id not in marker_corners and last_marker_positions[marker_id] is not None:
-                marker_corners[marker_id] = last_marker_positions[marker_id]
+            if marker_id not in marker_centers and last_marker_positions[marker_id] is not None:
+                marker_centers[marker_id] = last_marker_positions[marker_id]
         
-        if len(marker_corners) != 4:
+        if len(marker_centers) != 4:
             return None, None, None, None
         
         # Determine corners based on position
-        corners_list = [(id, corner) for id, corner in marker_corners.items()]
+        centers_list = [(id, center) for id, center in marker_centers.items()]
         
         # Find top-left (minimum x + y)
-        top_left_marker = min(corners_list, key=lambda x: x[1][0] + x[1][1])
+        top_left_marker = min(centers_list, key=lambda x: x[1][0] + x[1][1])
         
         # Find top-right (maximum x, minimum y)
-        top_right_marker = max(corners_list, key=lambda x: x[1][0] - x[1][1])
+        top_right_marker = max(centers_list, key=lambda x: x[1][0] - x[1][1])
         
         # Find bottom-right (maximum x + y)
-        bottom_right_marker = max(corners_list, key=lambda x: x[1][0] + x[1][1])
+        bottom_right_marker = max(centers_list, key=lambda x: x[1][0] + x[1][1])
         
         # Find bottom-left (minimum x, maximum y)
-        bottom_left_marker = min(corners_list, key=lambda x: x[1][0] - x[1][1])
+        bottom_left_marker = min(centers_list, key=lambda x: x[1][0] - x[1][1])
         
         return (top_left_marker[1], top_right_marker[1], 
                 bottom_right_marker[1], bottom_left_marker[1])
@@ -225,13 +225,14 @@ class ArucoTransform:
             [0, game_screen_height]           # Bottom-left
         ], dtype=np.float32)
         
-        # Destination points (Aruco marker inner corners from camera - where we want to map to)
-        # These define where the corners of the game window should appear on the projector
+        # Destination points (Aruco marker centers from camera - where we want to map to)
+        # These define where the corners of the game window should appear for the viewer
+        # Marker centers are at the corners of the projected image from viewer's perspective
         dst_points_camera = np.array([
-            top_left,         # Top-left marker corner
-            top_right,        # Top-right marker corner
-            bottom_right,     # Bottom-right marker corner
-            bottom_left       # Bottom-left marker corner
+            top_left,         # Top-left marker center
+            top_right,        # Top-right marker center
+            bottom_right,     # Bottom-right marker center
+            bottom_left       # Bottom-left marker center
         ], dtype=np.float32)
         
         # Scale marker positions from camera coordinates to game screen size
