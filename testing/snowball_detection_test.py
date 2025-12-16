@@ -1,4 +1,4 @@
-"""Test script for snowball detection using color segmentation and circle detection"""
+"""Test script for snowball detection using color segmentation, circle detection, and optionally YOLO"""
 import sys
 import os
 
@@ -10,10 +10,105 @@ import numpy as np
 from game.config import Config
 from game.logger import get_logger
 
+# Try to import YOLO (optional, lightweight model)
+try:
+    from ultralytics import YOLO
+    YOLO_AVAILABLE = True
+except ImportError:
+    YOLO_AVAILABLE = False
+    logger.warning("YOLO not available. Install with: pip install ultralytics")
+
 logger = get_logger()
 
+# Global YOLO model (lazy loading)
+_yolo_model = None
 
-def detect_snowballs(frame):
+
+def get_yolo_model():
+    """Get or load YOLO model (lazy loading)"""
+    global _yolo_model
+    if not YOLO_AVAILABLE:
+        return None
+    
+    if _yolo_model is None:
+        try:
+            # Use YOLOv8 nano (lightweight model)
+            # Model will be downloaded automatically on first use
+            _yolo_model = YOLO('yolov8n.pt')  # nano version - smallest and fastest
+            logger.info("YOLOv8 nano model loaded")
+        except Exception as e:
+            logger.warning(f"Failed to load YOLO model: {e}")
+            return None
+    
+    return _yolo_model
+
+
+def detect_snowballs_yolo(frame):
+    """
+    Detect white snowballs using YOLO model.
+    Note: YOLO detects general objects, we'll filter for ball-like objects.
+    """
+    model = get_yolo_model()
+    if model is None:
+        return []
+    
+    try:
+        # Run inference
+        results = model(frame, verbose=False)
+        
+        detected_balls = []
+        for result in results:
+            boxes = result.boxes
+            for box in boxes:
+                # Get class name
+                cls = int(box.cls[0])
+                class_name = model.names[cls]
+                confidence = float(box.conf[0])
+                
+                # Filter for ball-like objects (sports ball, etc.)
+                # YOLO classes: 'sports ball' is class 32
+                if (class_name in ['sports ball', 'ball'] or 
+                    (cls == 32 and confidence > 0.3)):  # sports ball class
+                    
+                    # Get bounding box
+                    x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
+                    center_x = int((x1 + x2) / 2)
+                    center_y = int((y1 + y2) / 2)
+                    width = int(x2 - x1)
+                    height = int(y2 - y1)
+                    radius = int((width + height) / 4)  # Approximate radius
+                    
+                    # Check if region is white
+                    y1_int = max(0, int(y1))
+                    y2_int = min(frame.shape[0], int(y2))
+                    x1_int = max(0, int(x1))
+                    x2_int = min(frame.shape[1], int(x2))
+                    
+                    if y2_int > y1_int and x2_int > x1_int:
+                        ball_region = frame[y1_int:y2_int, x1_int:x2_int]
+                        if ball_region.size > 0:
+                            gray_region = cv2.cvtColor(ball_region, cv2.COLOR_BGR2GRAY)
+                            white_pixels = np.sum(gray_region > 200)
+                            total_pixels = gray_region.size
+                            white_ratio = white_pixels / total_pixels if total_pixels > 0 else 0
+                            
+                            # Accept if white enough
+                            if white_ratio > 0.3:
+                                detected_balls.append({
+                                    'center': (center_x, center_y),
+                                    'radius': radius,
+                                    'area': np.pi * radius * radius,
+                                    'confidence': confidence,
+                                    'method': 'yolo'
+                                })
+        
+        return detected_balls
+    except Exception as e:
+        logger.debug(f"YOLO detection error: {e}")
+        return []
+
+
+def detect_snowballs_opencv(frame):
     """
     Detect white snowballs in the frame using color segmentation and circle detection.
     Uses HSV color space for better white detection under different lighting.
@@ -88,10 +183,29 @@ def detect_snowballs(frame):
                         detected_balls.append({
                             'center': (center_x, center_y),
                             'radius': radius,
-                            'area': np.pi * radius * radius
+                            'area': np.pi * radius * radius,
+                            'confidence': white_ratio,
+                            'method': 'opencv'
                         })
     
     return detected_balls, mask
+
+
+def detect_snowballs(frame, use_yolo=False):
+    """
+    Detect white snowballs using either OpenCV or YOLO.
+    use_yolo: If True, use YOLO model (more accurate but slower)
+    """
+    if use_yolo and YOLO_AVAILABLE:
+        balls = detect_snowballs_yolo(frame)
+        # Create dummy mask for compatibility
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        lower_white = np.array([0, 0, 200])
+        upper_white = np.array([180, 30, 255])
+        mask = cv2.inRange(hsv, lower_white, upper_white)
+        return balls, mask
+    else:
+        return detect_snowballs_opencv(frame)
 
 
 def draw_detections(frame, balls):
@@ -99,15 +213,29 @@ def draw_detections(frame, balls):
     for ball in balls:
         center = ball['center']
         radius = ball['radius']
+        method = ball.get('method', 'opencv')
+        confidence = ball.get('confidence', 1.0)
+        
+        # Color based on method
+        color = (0, 255, 0) if method == 'opencv' else (255, 0, 255)  # Green for OpenCV, Magenta for YOLO
         
         # Draw circle
-        cv2.circle(frame, center, radius, (0, 255, 0), 2)
-        cv2.circle(frame, center, 3, (0, 255, 0), -1)  # Center point
+        cv2.circle(frame, center, radius, color, 2)
+        cv2.circle(frame, center, 3, color, -1)  # Center point
         
-        # Draw area text
+        # Draw info text
         area_text = f"Area: {int(ball['area'])}"
-        cv2.putText(frame, area_text, (center[0] - 30, center[1] - radius - 10),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        conf_text = f"Conf: {confidence:.2f}" if 'confidence' in ball else ""
+        method_text = f"[{method.upper()}]"
+        
+        y_offset = -radius - 10
+        cv2.putText(frame, method_text, (center[0] - 30, center[1] + y_offset),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+        cv2.putText(frame, area_text, (center[0] - 30, center[1] + y_offset + 15),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+        if conf_text:
+            cv2.putText(frame, conf_text, (center[0] - 30, center[1] + y_offset + 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
     
     return frame
 
@@ -139,7 +267,10 @@ def main():
         pass
     
     logger.info("Camera initialized. Press 'q' to quit.")
+    logger.info("Press 'y' to toggle YOLO detection (if available).")
     logger.info("Throw white foam balls to test detection.")
+    
+    use_yolo = False
     
     while True:
         ret, frame = camera.read()
@@ -148,14 +279,15 @@ def main():
             break
         
         # Detect snowballs
-        balls, mask = detect_snowballs(frame)
+        balls, mask = detect_snowballs(frame, use_yolo=use_yolo)
         
         # Draw detections on original frame
         frame_with_detections = frame.copy()
         frame_with_detections = draw_detections(frame_with_detections, balls)
         
-        # Draw count
-        count_text = f"Balls detected: {len(balls)}"
+        # Draw count and method
+        method_text = "YOLO" if use_yolo else "OpenCV"
+        count_text = f"Balls: {len(balls)} [{method_text}]"
         cv2.putText(frame_with_detections, count_text, (10, 30),
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
@@ -168,9 +300,13 @@ def main():
         small_mask = cv2.resize(mask, (w // 2, h // 2))
         cv2.imshow("White Mask", small_mask)
         
-        # Exit on 'q' key
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        # Handle keyboard input
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
             break
+        elif key == ord('y') and YOLO_AVAILABLE:
+            use_yolo = not use_yolo
+            logger.info(f"YOLO detection: {'enabled' if use_yolo else 'disabled'}")
     
     # Cleanup
     camera.release()
