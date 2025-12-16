@@ -6,6 +6,7 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 ENV/
 build/
 develop-eggs/
@@ -42,4 +43,6 @@ Thumbs.db
 *.png
 !assets/**/*.png
 !assets/**/*.jpg
+
+
 
