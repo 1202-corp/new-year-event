@@ -201,6 +201,9 @@ class Game:
     
     def quit_game(self) -> None:
         """Quits the game"""
+        # Release Aruco transform resources
+        if self.aruco_transform is not None:
+            self.aruco_transform.release()
         self.running = False
     
     def toggle_fullscreen(self) -> None:
