@@ -10,6 +10,8 @@ import numpy as np
 from game.config import Config
 from game.logger import get_logger
 
+logger = get_logger()
+
 # Try to import YOLO (optional, lightweight model)
 try:
     from ultralytics import YOLO
@@ -17,8 +19,6 @@ try:
 except ImportError:
     YOLO_AVAILABLE = False
     logger.warning("YOLO not available. Install with: pip install ultralytics")
-
-logger = get_logger()
 
 # Global YOLO model (lazy loading)
 _yolo_model = None
