@@ -197,9 +197,19 @@ class WallCollisionDetector:
                 - transformed_frame: Transformed frame (if Aruco available)
                 - original_frame: Original camera frame
         """
+        # Performance optimization: downscale frame for processing (faster)
+        # Process at lower resolution, then scale results back
+        process_scale = 0.5  # Process at 50% resolution
+        h, w = frame.shape[:2]
+        process_w = int(w * process_scale)
+        process_h = int(h * process_scale)
+        
+        # Downscale frame for processing
+        frame_small = cv2.resize(frame, (process_w, process_h), interpolation=cv2.INTER_LINEAR)
+        
         # Transform frame to game space using Aruco markers (like in aruco_detection_test.py)
         original_frame = frame.copy()
-        transformed_frame = frame.copy()
+        transformed_frame = frame_small.copy()
         
         if self.aruco_transform and self.aruco_transform.calibrated:
             # Use stored calibration positions for transform
@@ -208,20 +218,25 @@ class WallCollisionDetector:
                 game_width = calib['game_screen_width']
                 game_height = calib['game_screen_height']
                 
-                top_left = calib['top_left']
-                top_right = calib['top_right']
-                bottom_right = calib['bottom_right']
-                bottom_left = calib['bottom_left']
+                # Scale marker positions to match downscaled frame
+                top_left = (calib['top_left'][0] * process_scale, calib['top_left'][1] * process_scale)
+                top_right = (calib['top_right'][0] * process_scale, calib['top_right'][1] * process_scale)
+                bottom_right = (calib['bottom_right'][0] * process_scale, calib['bottom_right'][1] * process_scale)
+                bottom_left = (calib['bottom_left'][0] * process_scale, calib['bottom_left'][1] * process_scale)
                 
-                # Destination points (output rectangle - game screen size)
+                # Scale output dimensions too
+                output_w = int(game_width * process_scale)
+                output_h = int(game_height * process_scale)
+                
+                # Destination points (output rectangle - game screen size, scaled)
                 dst_points = np.array([
                     [0, 0],           # Top-left
-                    [game_width, 0],           # Top-right
-                    [game_width, game_height],           # Bottom-right
-                    [0, game_height]            # Bottom-left
+                    [output_w, 0],           # Top-right
+                    [output_w, output_h],           # Bottom-right
+                    [0, output_h]            # Bottom-left
                 ], dtype=np.float32)
                 
-                # Source points (Aruco marker corners from camera view)
+                # Source points (Aruco marker corners from camera view, scaled)
                 src_points = np.array([
                     top_left,         # Top-left
                     top_right,        # Top-right
@@ -232,13 +247,39 @@ class WallCollisionDetector:
                 # Calculate perspective transform matrix
                 matrix = cv2.getPerspectiveTransform(src_points, dst_points)
                 
-                # Apply transformation to original camera frame
-                transformed_frame = cv2.warpPerspective(frame, matrix, (game_width, game_height))
+                # Apply transformation to downscaled camera frame
+                transformed_frame = cv2.warpPerspective(frame_small, matrix, (output_w, output_h))
         
-        # Create mask of known game objects
+        # Scale game objects coordinates to match downscaled frame
+        scaled_game_objects = None
+        if game_objects is not None:
+            scaled_game_objects = {}
+            # Scale enemy positions
+            if 'enemies' in game_objects:
+                scaled_game_objects['enemies'] = [
+                    (int(x * process_scale), int(y * process_scale), 
+                     int(w * process_scale), int(h * process_scale))
+                    for x, y, w, h in game_objects['enemies']
+                ]
+            # Scale line positions
+            if 'lines' in game_objects:
+                scaled_game_objects['lines'] = [
+                    int(y * process_scale) for y in game_objects['lines']
+                ]
+            # Scale UI panel
+            if 'ui_panel' in game_objects and game_objects['ui_panel'] is not None:
+                panel = game_objects['ui_panel']
+                if len(panel) >= 4:
+                    x, y, w, h = panel[:4]
+                    scaled_game_objects['ui_panel'] = (
+                        int(x * process_scale), int(y * process_scale),
+                        int(w * process_scale), int(h * process_scale)
+                    )
+        
+        # Create mask of known game objects (on downscaled frame)
         game_objects_mask = self.create_game_object_mask(
             transformed_frame.shape,
-            game_objects
+            scaled_game_objects
         )
         
         # Detect motion
@@ -247,12 +288,23 @@ class WallCollisionDetector:
         # Find ball candidate
         ball_candidate = self.find_ball_candidate(motion_mask)
         
+        # Scale up transformed frame and masks for debug display (original resolution)
+        if transformed_frame.shape[:2] != (h, w):
+            # Scale up transformed frame for debug
+            transformed_frame_debug = cv2.resize(transformed_frame, (w, h), interpolation=cv2.INTER_LINEAR)
+            motion_mask_debug = cv2.resize(motion_mask, (w, h), interpolation=cv2.INTER_NEAREST)
+            game_objects_mask_debug = cv2.resize(game_objects_mask, (w, h), interpolation=cv2.INTER_NEAREST)
+        else:
+            transformed_frame_debug = transformed_frame
+            motion_mask_debug = motion_mask
+            game_objects_mask_debug = game_objects_mask
+        
         result = {
             'ball_detected': False,
             'ball_position': None,
-            'motion_mask': motion_mask,
-            'game_objects_mask': game_objects_mask,
-            'transformed_frame': transformed_frame,
+            'motion_mask': motion_mask_debug,
+            'game_objects_mask': game_objects_mask_debug,
+            'transformed_frame': transformed_frame_debug,
             'original_frame': original_frame
         }
         
@@ -264,8 +316,11 @@ class WallCollisionDetector:
             return result
         
         x, y, radius = ball_candidate
+        # Scale up ball position for original resolution
+        x_full = int(x / process_scale)
+        y_full = int(y / process_scale)
         result['ball_detected'] = True
-        result['ball_position'] = (x, y)
+        result['ball_position'] = (x_full, y_full)
         
         # Update ball tracking
         if self.ball_position is not None:

@@ -93,9 +93,16 @@ class Game:
         
         # History for camera delay compensation
         # Store enemy positions with timestamps to account for camera delay
-        self.enemy_position_history = []  # List of (timestamp, enemy_positions_dict)
+        from collections import deque
+        self.enemy_position_history = deque(maxlen=60)  # Keep last 60 frames (1 second at 60 FPS)
         import time
         self.game_start_time = time.time()
+        
+        # Performance optimization: process camera frames less frequently
+        self.frame_counter = 0
+        self.process_every_n_frames = 2  # Process every 2nd frame (30 FPS instead of 60)
+        self.debug_update_counter = 0
+        self.debug_update_every_n = 3  # Update debug windows every 3rd processed frame (10 FPS)
         
         # Game components (MUST be initialized before _update_scaling)
         self.characters: List[Character] = []
@@ -392,13 +399,14 @@ class Game:
             if character.is_alive:
                 current_enemy_positions[id(character)] = (character.x, character.y, character.width, character.height)
         
-        # Add to history (keep last 1 second of history)
+        # Add to history (deque automatically limits size)
         self.enemy_position_history.append((current_time, current_enemy_positions))
-        # Remove old entries (older than 1 second)
-        self.enemy_position_history = [(t, pos) for t, pos in self.enemy_position_history if current_time - t < 1.0]
         
-        # Update wall collision detector if enabled
-        if self.wall_collision_detector and self.aruco_transform and self.aruco_transform.calibrated:
+        # Update wall collision detector if enabled (process less frequently for performance)
+        self.frame_counter += 1
+        if (self.wall_collision_detector and self.aruco_transform and 
+            self.aruco_transform.calibrated and 
+            self.frame_counter % self.process_every_n_frames == 0):
             # Read frame from Aruco camera (same camera used for Aruco detection)
             try:
                 import cv2
@@ -410,8 +418,10 @@ class Game:
                     # Detect collision
                     result = self.wall_collision_detector.detect_collision(frame, game_objects)
                     
-                    # Show debug windows (3 horizontally)
-                    self._show_collision_debug(result, frame)
+                    # Show debug windows less frequently (every Nth processed frame)
+                    self.debug_update_counter += 1
+                    if self.debug_update_counter % self.debug_update_every_n == 0:
+                        self._show_collision_debug(result, frame)
             except Exception as e:
                 logger.debug(f"Error in wall collision detection: {e}")
         
@@ -627,7 +637,7 @@ class Game:
         # Find enemy positions from history closest to target time
         enemies = []
         if self.enemy_position_history:
-            # Find closest timestamp in history
+            # Find closest timestamp in history (more efficient with deque)
             closest_entry = min(self.enemy_position_history, key=lambda x: abs(x[0] - target_time))
             historical_positions = closest_entry[1]
             
