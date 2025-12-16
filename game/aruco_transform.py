@@ -204,6 +204,8 @@ class ArucoTransform:
         """
         frame = self.read_camera_frame()
         if frame is None:
+            if self.debug_enabled:
+                self._draw_debug_no_frame()
             return False
         
         h, w = frame.shape[:2]
@@ -214,6 +216,10 @@ class ArucoTransform:
         
         # Determine corners
         top_left, top_right, bottom_right, bottom_left = self.determine_corners(corners, ids, screen_center)
+        
+        # Always show debug during calibration
+        if self.debug_enabled:
+            self._draw_debug(frame, corners, ids, top_left, top_right, bottom_right, bottom_left)
         
         if any(p is None for p in [top_left, top_right, bottom_right, bottom_left]):
             return False
