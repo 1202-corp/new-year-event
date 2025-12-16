@@ -140,6 +140,9 @@ class Game:
         scaling.update(new_width, new_height)
         self._update_fonts()
         
+        # Update UI panel with new screen dimensions
+        self.ui_panel.update(new_width, new_height)
+        
         # Update all existing characters to match new scale
         # Only scale if we had a previous size (not first initialization)
         if old_width > 0 and old_height > 0 and (old_width != new_width or old_height != new_height):
