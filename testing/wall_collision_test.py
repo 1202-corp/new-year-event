@@ -15,44 +15,44 @@ from game.wall_collision_detector import WallCollisionDetector
 logger = get_logger()
 
 
-def draw_detection(frame, result):
-    """Draw detection results on frame"""
-    frame = frame.copy()
+def create_combined_view(result):
+    """Create combined view with camera frame and motion mask side by side"""
+    if 'transformed_frame' not in result or 'motion_mask' not in result:
+        return None
     
-    # Draw motion mask overlay (semi-transparent)
-    if 'motion_mask' in result:
-        motion_colored = cv2.applyColorMap(result['motion_mask'], cv2.COLORMAP_JET)
-        frame = cv2.addWeighted(frame, 0.7, motion_colored, 0.3, 0)
+    camera_frame = result['transformed_frame'].copy()
+    motion_mask = result['motion_mask']
     
-    # Draw game objects mask (green overlay)
-    if 'game_objects_mask' in result:
-        mask_colored = np.zeros_like(frame)
-        mask_colored[result['game_objects_mask'] > 0] = [0, 255, 0]
-        frame = cv2.addWeighted(frame, 0.8, mask_colored, 0.2, 0)
+    # Convert motion mask to color
+    motion_colored = cv2.applyColorMap(motion_mask, cv2.COLORMAP_JET)
     
-    # Draw ball position
+    # Draw ball position on camera frame
     if result['ball_detected'] and result['ball_position']:
         x, y = result['ball_position']
-        cv2.circle(frame, (x, y), 20, (0, 255, 255), 3)
-        cv2.putText(frame, "BALL", (x + 25, y),
+        cv2.circle(camera_frame, (x, y), 20, (0, 255, 255), 3)
+        cv2.putText(camera_frame, "BALL", (x + 25, y),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
     
-    # Draw collision
-    if result['collision_detected']:
-        if result['collision_position']:
-            x, y = result['collision_position']
-            cv2.circle(frame, (x, y), 30, (0, 0, 255), 5)
-        
-        wall = result.get('collision_wall', 'unknown')
-        cv2.putText(frame, f"COLLISION: {wall.upper()}", (10, 60),
-                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+    # Draw game objects mask overlay on camera frame (green)
+    if 'game_objects_mask' in result:
+        mask_colored = np.zeros_like(camera_frame)
+        mask_colored[result['game_objects_mask'] > 0] = [0, 255, 0]
+        camera_frame = cv2.addWeighted(camera_frame, 0.8, mask_colored, 0.2, 0)
     
-    # Draw status
-    status = "Ball: " + ("DETECTED" if result['ball_detected'] else "NOT DETECTED")
-    cv2.putText(frame, status, (10, 30),
+    # Add labels
+    cv2.putText(camera_frame, "Camera View", (10, 30),
                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     
-    return frame
+    cv2.putText(motion_colored, "Motion Mask", (10, 30),
+               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    
+    # Combine vertically (camera on top, motion mask on bottom)
+    h, w = camera_frame.shape[:2]
+    combined = np.zeros((h * 2, w, 3), dtype=np.uint8)
+    combined[0:h, :] = camera_frame
+    combined[h:, :] = motion_colored
+    
+    return combined
 
 
 def main():
@@ -104,13 +104,16 @@ def main():
         # Detect collision
         result = detector.detect_collision(frame, game_objects)
         
-        # Draw results
-        frame_with_detection = draw_detection(frame, result)
-        
-        # Resize for display
-        h, w = frame_with_detection.shape[:2]
-        small_frame = cv2.resize(frame_with_detection, (w // 2, h // 2))
-        cv2.imshow("Wall Collision Detection", small_frame)
+        # Create combined view
+        combined = create_combined_view(result)
+        if combined is not None:
+            # Resize for display
+            h, w = combined.shape[:2]
+            small_combined = cv2.resize(combined, (w // 2, h // 2))
+            cv2.imshow("Motion Detection: Camera + Motion Mask", small_combined)
+        else:
+            # Fallback if no transformed frame
+            cv2.imshow("Motion Detection", frame)
         
         # Handle keyboard input
         key = cv2.waitKey(1) & 0xFF

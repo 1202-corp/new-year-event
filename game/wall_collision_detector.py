@@ -41,8 +41,6 @@ class WallCollisionDetector:
         self.ball_position = None  # (x, y) in game coordinates
         self.ball_velocity = None  # (vx, vy) velocity vector
         self.last_ball_position = None
-        self.collision_detected = False
-        self.collision_position = None
         
         # Motion detection parameters
         self.min_motion_area = 100  # Minimum area for motion blob
@@ -102,7 +100,7 @@ class WallCollisionDetector:
                     mask[y1:y2, :] = 255
         
         # Mask UI panel
-        if 'ui_panel' in game_objects:
+        if 'ui_panel' in game_objects and game_objects['ui_panel'] is not None:
             panel = game_objects['ui_panel']
             if len(panel) >= 4:
                 x, y, width, height = panel[:4]
@@ -196,24 +194,18 @@ class WallCollisionDetector:
             Dictionary with detection results:
                 - ball_detected: bool
                 - ball_position: (x, y) or None
-                - collision_detected: bool
-                - collision_position: (x, y) or None
-                - collision_wall: 'left', 'right', 'top', 'bottom' or None
+                - transformed_frame: Transformed frame (if Aruco available)
+                - original_frame: Original camera frame
         """
         # Transform frame to game space if Aruco transform is available
+        original_frame = frame.copy()
         if self.aruco_transform and self.aruco_transform.transform_valid:
-            # Get game screen dimensions
-            game_width = self.aruco_transform._output_width
-            game_height = self.aruco_transform._output_height
-            
-            # Transform frame to game space
+            # Transform frame to game space using Aruco markers
             transformed_frame = self.aruco_transform.apply_transform(frame)
             if transformed_frame is None:
                 transformed_frame = frame
         else:
             transformed_frame = frame
-            game_width = frame.shape[1]
-            game_height = frame.shape[0]
         
         # Create mask of known game objects
         game_objects_mask = self.create_game_object_mask(
@@ -230,11 +222,10 @@ class WallCollisionDetector:
         result = {
             'ball_detected': False,
             'ball_position': None,
-            'collision_detected': False,
-            'collision_position': None,
-            'collision_wall': None,
             'motion_mask': motion_mask,
-            'game_objects_mask': game_objects_mask
+            'game_objects_mask': game_objects_mask,
+            'transformed_frame': transformed_frame,
+            'original_frame': original_frame
         }
         
         if ball_candidate is None:
@@ -254,22 +245,6 @@ class WallCollisionDetector:
             dx = x - self.ball_position[0]
             dy = y - self.ball_position[1]
             self.ball_velocity = (dx, dy)
-            
-            # Check for wall collision
-            collision = self._check_wall_collision(
-                self.ball_position,
-                (x, y),
-                self.ball_velocity,
-                game_width,
-                game_height
-            )
-            
-            if collision:
-                result['collision_detected'] = True
-                result['collision_position'] = (x, y)
-                result['collision_wall'] = collision['wall']
-                self.collision_detected = True
-                self.collision_position = (x, y)
         else:
             # First detection, no velocity yet
             self.ball_velocity = None
@@ -280,83 +255,11 @@ class WallCollisionDetector:
         
         return result
     
-    def _check_wall_collision(
-        self,
-        old_pos: Tuple[int, int],
-        new_pos: Tuple[int, int],
-        velocity: Tuple[float, float],
-        game_width: int,
-        game_height: int
-    ) -> Optional[Dict]:
-        """
-        Check if ball collided with a wall.
-        
-        Args:
-            old_pos: Previous position (x, y)
-            new_pos: Current position (x, y)
-            velocity: Velocity vector (vx, vy)
-            game_width: Game area width
-            game_height: Game area height
-        
-        Returns:
-            Dict with 'wall' key if collision detected, None otherwise
-        """
-        if velocity is None:
-            return None
-        
-        vx, vy = velocity
-        
-        # Check if near wall and velocity indicates collision
-        x, y = new_pos
-        margin = self.wall_margin
-        
-        # Left wall
-        if x <= margin and vx < 0:
-            return {'wall': 'left'}
-        
-        # Right wall
-        if x >= game_width - margin and vx > 0:
-            return {'wall': 'right'}
-        
-        # Top wall
-        if y <= margin and vy < 0:
-            return {'wall': 'top'}
-        
-        # Bottom wall
-        if y >= game_height - margin and vy > 0:
-            return {'wall': 'bottom'}
-        
-        # Check for sudden velocity change (bounce)
-        if self.last_ball_position is not None:
-            old_vx = old_pos[0] - self.last_ball_position[0] if len(self.last_ball_position) >= 1 else 0
-            old_vy = old_pos[1] - self.last_ball_position[1] if len(self.last_ball_position) >= 1 else 0
-            
-            # Check for significant velocity reversal
-            if abs(old_vx) > self.velocity_threshold and abs(vx) > self.velocity_threshold:
-                if (old_vx > 0 and vx < 0) or (old_vx < 0 and vx > 0):
-                    # Horizontal bounce
-                    if x <= margin:
-                        return {'wall': 'left'}
-                    elif x >= game_width - margin:
-                        return {'wall': 'right'}
-            
-            if abs(old_vy) > self.velocity_threshold and abs(vy) > self.velocity_threshold:
-                if (old_vy > 0 and vy < 0) or (old_vy < 0 and vy > 0):
-                    # Vertical bounce
-                    if y <= margin:
-                        return {'wall': 'top'}
-                    elif y >= game_height - margin:
-                        return {'wall': 'bottom'}
-        
-        return None
-    
     def reset(self):
         """Reset detector state"""
         self.ball_position = None
         self.ball_velocity = None
         self.last_ball_position = None
-        self.collision_detected = False
-        self.collision_position = None
         # Reset background subtractor
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
             history=500,
