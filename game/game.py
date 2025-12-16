@@ -394,15 +394,29 @@ class Game:
                 # Apply perspective transformation
                 transformed = self.aruco_transform.apply_transform(screen_bgr)
                 
-                if transformed is not None:
+                if transformed is not None and transformed.shape[0] > 0 and transformed.shape[1] > 0:
                     # Convert back to RGB
                     transformed_rgb = cv2.cvtColor(transformed, cv2.COLOR_BGR2RGB)
                     # Transpose back to (width, height, channels)
                     transformed_rgb = np.transpose(transformed_rgb, (1, 0, 2))
                     # Create new pygame surface from transformed array
                     transformed_surface = pygame.surfarray.make_surface(transformed_rgb)
+                    
+                    # Resize transformed surface to fit the screen if needed
+                    if transformed_surface.get_width() != screen_width or transformed_surface.get_height() != screen_height:
+                        # Scale to fit screen while maintaining aspect ratio
+                        scale_x = screen_width / transformed_surface.get_width()
+                        scale_y = screen_height / transformed_surface.get_height()
+                        scale = min(scale_x, scale_y)
+                        new_width = int(transformed_surface.get_width() * scale)
+                        new_height = int(transformed_surface.get_height() * scale)
+                        transformed_surface = pygame.transform.scale(transformed_surface, (new_width, new_height))
+                    
+                    # Center the transformed surface on screen
+                    x_offset = (screen_width - transformed_surface.get_width()) // 2
+                    y_offset = (screen_height - transformed_surface.get_height()) // 2
                     # Blit transformed surface to screen
-                    self.screen.blit(transformed_surface, (0, 0))
+                    self.screen.blit(transformed_surface, (x_offset, y_offset))
             
             pygame.display.flip()
         except ImportError:
