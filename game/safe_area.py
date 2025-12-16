@@ -8,7 +8,6 @@ def get_safe_area_margin(screen_width: int = None, screen_height: int = None) ->
     Uses average of width and height percentages for uniform margins.
     """
     if screen_width is None or screen_height is None:
-        from game.config import Config
         screen_width = Config.SCREEN_WIDTH
         screen_height = Config.SCREEN_HEIGHT
     
