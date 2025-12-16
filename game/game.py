@@ -80,18 +80,17 @@ class Game:
         
         self.clock = pygame.time.Clock()
         
-        # Initialize scaling
-        init_scaling(Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT)
-        self._update_scaling()
-        
         # Game state
         self.state = GameState.PLAYING
         self.running = True
         
-        # Game components (initialize before _update_scaling)
+        # Game components (MUST be initialized before _update_scaling)
         self.characters: List[Character] = []
         self.spawner = CharacterSpawner()
         self.score_manager = ScoreManager()
+        
+        # Initialize scaling
+        init_scaling(Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT)
         
         # Fullscreen state (from config) - use borderless windowed fullscreen
         self.fullscreen = Config.FULLSCREEN
@@ -113,7 +112,9 @@ class Game:
                     (screen_info.current_w, screen_info.current_h),
                     pygame.RESIZABLE
                 )
-            self._update_scaling()
+        
+        # Update scaling after window is set up
+        self._update_scaling()
         
         # Spawn timing
         self.spawn_timer = 0.0
