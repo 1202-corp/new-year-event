@@ -243,7 +243,7 @@ class ArucoTransform:
         # Draw debug windows
         if self.debug_enabled:
             self._draw_debug(frame, corners, ids, top_left, top_right, bottom_right, bottom_left, 
-                           src, dst_points, game_screen_width, game_screen_height)
+                           src_points, dst_points, game_screen_width, game_screen_height)
         
         return True
     
@@ -380,36 +380,14 @@ class ArucoTransform:
         if not self.transform_valid or self.transform_matrix is None:
             return game_surface
         
-        # Get the bounding box of the destination points to determine output size
-        # We need to find the min/max coordinates of the Aruco marker corners
-        # to create an output image that fits them
-        if hasattr(self, '_last_dst_points') and self._last_dst_points is not None:
-            dst_points = self._last_dst_points
-        else:
-            # Fallback: use camera frame size
-            h, w = game_surface.shape[:2]
-            return cv2.warpPerspective(game_surface, self.transform_matrix, (w, h))
-        
-        # Calculate bounding box of destination points
-        x_coords = dst_points[:, 0]
-        y_coords = dst_points[:, 1]
-        min_x = int(np.min(x_coords))
-        max_x = int(np.max(x_coords))
-        min_y = int(np.min(y_coords))
-        max_y = int(np.max(y_coords))
-        
-        # Output size should be large enough to contain all destination points
-        # But we want to maintain the aspect ratio and not make it too large
-        # Use the camera frame dimensions as a reference
-        if self.camera is not None and self.camera.isOpened():
-            cam_width = int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
-            cam_height = int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        else:
-            cam_width = max_x - min_x
-            cam_height = max_y - min_y
+        # Use the original game surface dimensions for output
+        # The transform will map the game window to match Aruco marker positions
+        # We want to output at the same size as input to avoid scaling issues
+        h, w = game_surface.shape[:2]
         
         # Warp the game surface to match the Aruco marker corners
-        transformed = cv2.warpPerspective(game_surface, self.transform_matrix, (cam_width, cam_height))
+        # Output size should match input size to maintain aspect ratio
+        transformed = cv2.warpPerspective(game_surface, self.transform_matrix, (w, h))
         return transformed
     
     def is_valid(self) -> bool:
