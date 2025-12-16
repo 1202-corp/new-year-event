@@ -166,8 +166,11 @@ class UIPanel:
             # Crop to square
             frame_cropped = frame[start_y:start_y + size, start_x:start_x + size]
             
+            # Mirror horizontally (flip left-right)
+            frame_mirrored = cv2.flip(frame_cropped, 1)
+            
             # Resize to camera window size (maintain aspect ratio, but already square)
-            frame_resized = cv2.resize(frame_cropped, (self.camera_window_size, self.camera_window_size))
+            frame_resized = cv2.resize(frame_mirrored, (self.camera_window_size, self.camera_window_size))
             
             # Convert BGR to RGB
             frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)

@@ -389,7 +389,7 @@ class Game:
                 lane_color,
                 (margin, y),
                 (screen_width - margin, y),
-                2  # Line width
+                5  # Line width (thicker)
             )
     
     def run(self) -> None:

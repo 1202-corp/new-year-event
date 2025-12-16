@@ -104,7 +104,15 @@ class CharacterSpawner:
             return None  # All lanes are full
         
         lane = random.choice(available_lanes)
-        y = self.calculate_lane_y(lane, screen_height, ui_panel_height, margin)
+        lane_y = self.calculate_lane_y(lane, screen_height, ui_panel_height, margin)
+        
+        # Calculate character Y position so center of character is on the lane line
+        # We need to subtract half of character height to center it on the line
+        from game.constants import CHARACTER_HEIGHT
+        from game.scaling import get_scaling
+        scaling = get_scaling()
+        character_height = int(scaling.scale_value(CHARACTER_HEIGHT))
+        y = lane_y - character_height // 2  # Center character on lane line
         
         # Set speed based on movement type
         if movement_type == MovementType.FLYING:
