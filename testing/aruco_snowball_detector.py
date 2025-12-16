@@ -28,10 +28,7 @@ except ImportError:
 ARUCO_DICT_TYPE = cv2.aruco.DICT_4X4_50
 ARUCO_MARKER_IDS = [0, 1, 2, 3]  # Expected marker IDs
 
-# Camera settings
-CAMERA_EXPOSURE = -6
-CAMERA_BRIGHTNESS = 50
-CAMERA_ISO_SPEED = 100
+# Camera settings (only MJPEG format is used)
 
 # Hough Circles parameters (tuned for noise reduction)
 HOUGH_DP = 1.2                    # Inverse ratio of accumulator resolution
@@ -641,15 +638,6 @@ def main():
     # Set camera resolution
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, Config.SNOWBALL_CAMERA_WIDTH)
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, Config.SNOWBALL_CAMERA_HEIGHT)
-    
-    # Set camera settings
-    camera.set(cv2.CAP_PROP_EXPOSURE, CAMERA_EXPOSURE)
-    camera.set(cv2.CAP_PROP_BRIGHTNESS, CAMERA_BRIGHTNESS)
-    
-    try:
-        camera.set(cv2.CAP_PROP_ISO_SPEED, CAMERA_ISO_SPEED)
-    except:
-        pass
     
     logger.info("Camera initialized. Press 'q' to quit, 'r' to reset.")
     logger.info("Hybrid detector: Hough Circles (primary) + YOLO (fallback)")

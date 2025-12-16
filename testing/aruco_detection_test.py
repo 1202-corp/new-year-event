@@ -191,30 +191,12 @@ def main():
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, Config.SNOWBALL_CAMERA_WIDTH)
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, Config.SNOWBALL_CAMERA_HEIGHT)
     
-    # Set lower exposure (lower value = darker image, less motion blur)
-    # Typical range: -13 to -1 (auto), or 1-10000 (manual)
-    # Lower values = less exposure = darker but sharper
-    camera.set(cv2.CAP_PROP_EXPOSURE, -6)  # Lower exposure value
-    
-    # Set lower brightness/ISO (lower value = darker image, less noise)
-    # Typical range: 0-255 or 0-100 depending on camera
-    # Lower values = less brightness/ISO = darker but less noise
-    camera.set(cv2.CAP_PROP_BRIGHTNESS, 50)  # Lower brightness (default is usually 128)
-    
-    # Try to set ISO directly if supported
-    try:
-        camera.set(cv2.CAP_PROP_ISO_SPEED, 100)  # Lower ISO (if supported)
-    except:
-        pass  # Some cameras don't support direct ISO control
-    
     # Verify format
     current_fourcc = int(camera.get(cv2.CAP_PROP_FOURCC))
     fourcc_str = "".join([chr((current_fourcc >> 8 * i) & 0xFF) for i in range(4)])
     
     logger.info("Camera initialized. Press 'q' to quit.")
     logger.info(f"Camera format: {fourcc_str} (should be MJPG for MJPEG)")
-    logger.info(f"Camera exposure set to: {camera.get(cv2.CAP_PROP_EXPOSURE)}")
-    logger.info(f"Camera brightness set to: {camera.get(cv2.CAP_PROP_BRIGHTNESS)}")
     logger.info("Make sure 4 Aruco markers (ID: 0, 1, 2, 3) are visible in the frame.")
     
     while True:

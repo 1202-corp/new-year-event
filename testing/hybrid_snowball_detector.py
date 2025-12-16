@@ -421,15 +421,6 @@ def main():
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, Config.SNOWBALL_CAMERA_WIDTH)
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, Config.SNOWBALL_CAMERA_HEIGHT)
     
-    # Set lower exposure and brightness
-    camera.set(cv2.CAP_PROP_EXPOSURE, -6)
-    camera.set(cv2.CAP_PROP_BRIGHTNESS, 50)
-    
-    try:
-        camera.set(cv2.CAP_PROP_ISO_SPEED, 100)
-    except:
-        pass
-    
     logger.info("Camera initialized. Press 'q' to quit.")
     logger.info("Hybrid detector: Hough Circles (primary) + YOLO (fallback)")
     
