@@ -375,19 +375,35 @@ class ArucoTransform:
             game_surface: Game screen as numpy array (BGR format)
         
         Returns:
-            Transformed surface or None if transform is invalid
+            Transformed surface with black areas where there's no game content,
+            or None if transform is invalid
         """
         if not self.transform_valid or self.transform_matrix is None:
             return game_surface
         
-        # Use the original game surface dimensions for output
-        # The transform will map the game window to match Aruco marker positions
-        # We want to output at the same size as input to avoid scaling issues
-        h, w = game_surface.shape[:2]
+        # Get output dimensions from stored values
+        if not hasattr(self, '_output_width') or not hasattr(self, '_output_height'):
+            # Fallback: use input size
+            h, w = game_surface.shape[:2]
+            return cv2.warpPerspective(game_surface, self.transform_matrix, (w, h))
+        
+        output_width = self._output_width
+        output_height = self._output_height
+        
+        # Create output image with black background (for empty areas)
+        output_image = np.zeros((output_height, output_width, 3), dtype=np.uint8)
         
         # Warp the game surface to match the Aruco marker corners
-        # Output size should match input size to maintain aspect ratio
-        transformed = cv2.warpPerspective(game_surface, self.transform_matrix, (w, h))
+        # This will create a transformed image that fits within the bounding box
+        transformed = cv2.warpPerspective(
+            game_surface, 
+            self.transform_matrix, 
+            (output_width, output_height),
+            flags=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(0, 0, 0)  # Black border for empty areas
+        )
+        
         return transformed
     
     def is_valid(self) -> bool:

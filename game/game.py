@@ -402,19 +402,24 @@ class Game:
                     # Create new pygame surface from transformed array
                     transformed_surface = pygame.surfarray.make_surface(transformed_rgb)
                     
-                    # Resize transformed surface to fit the screen if needed
-                    if transformed_surface.get_width() != screen_width or transformed_surface.get_height() != screen_height:
-                        # Scale to fit screen while maintaining aspect ratio
-                        scale_x = screen_width / transformed_surface.get_width()
-                        scale_y = screen_height / transformed_surface.get_height()
-                        scale = min(scale_x, scale_y)
-                        new_width = int(transformed_surface.get_width() * scale)
-                        new_height = int(transformed_surface.get_height() * scale)
-                        transformed_surface = pygame.transform.scale(transformed_surface, (new_width, new_height))
+                    # Scale transformed surface to fit the full screen
+                    # The transformed image may be smaller or larger than screen
+                    # We want to fill the entire screen with it (with black areas if needed)
+                    scale_x = screen_width / transformed_surface.get_width()
+                    scale_y = screen_height / transformed_surface.get_height()
+                    scale = max(scale_x, scale_y)  # Use max to fill screen (may crop)
+                    
+                    new_width = int(transformed_surface.get_width() * scale)
+                    new_height = int(transformed_surface.get_height() * scale)
+                    transformed_surface = pygame.transform.scale(transformed_surface, (new_width, new_height))
                     
                     # Center the transformed surface on screen
                     x_offset = (screen_width - transformed_surface.get_width()) // 2
                     y_offset = (screen_height - transformed_surface.get_height()) // 2
+                    
+                    # Fill screen with black first (for empty areas)
+                    self.screen.fill((0, 0, 0))
+                    
                     # Blit transformed surface to screen
                     self.screen.blit(transformed_surface, (x_offset, y_offset))
             
