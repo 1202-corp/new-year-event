@@ -20,6 +20,8 @@ class MovementType(Enum):
 class GameState(Enum):
     """Game states"""
     MENU = "menu"
+    CALIBRATING = "calibrating"  # Calibration phase
+    CALIBRATION_PREVIEW = "calibration_preview"  # Showing corrected preview
     PLAYING = "playing"
     PAUSED = "paused"
     GAME_OVER = "game_over"
