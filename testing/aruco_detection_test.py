@@ -75,27 +75,27 @@ def determine_corners(corners, ids):
     # Find bottom-left (minimum x, maximum y)
     bottom_left = min(centers_list, key=lambda x: x[1][0] - x[1][1])
     
-    # Get actual corner points from markers
-    top_left_corner = None
-    top_right_corner = None
-    bottom_right_corner = None
-    bottom_left_corner = None
+    # Get center points from markers (not corners)
+    top_left_center = None
+    top_right_center = None
+    bottom_right_center = None
+    bottom_left_center = None
     
     for i, marker_id in enumerate(ids.flatten()):
+        # Calculate center of marker (mean of all 4 corners)
+        corner_points = corners[i][0]
+        center = np.mean(corner_points, axis=0)
+        
         if marker_id == top_left[0]:
-            # Top-left marker: use top-left corner of the marker
-            top_left_corner = corners[i][0][0]  # First corner (top-left of marker)
+            top_left_center = center
         elif marker_id == top_right[0]:
-            # Top-right marker: use top-right corner of the marker
-            top_right_corner = corners[i][0][1]  # Second corner (top-right of marker)
+            top_right_center = center
         elif marker_id == bottom_right[0]:
-            # Bottom-right marker: use bottom-right corner of the marker
-            bottom_right_corner = corners[i][0][2]  # Third corner (bottom-right of marker)
+            bottom_right_center = center
         elif marker_id == bottom_left[0]:
-            # Bottom-left marker: use bottom-left corner of the marker
-            bottom_left_corner = corners[i][0][3]  # Fourth corner (bottom-left of marker)
+            bottom_left_center = center
     
-    return top_left_corner, top_right_corner, bottom_right_corner, bottom_left_corner
+    return top_left_center, top_right_center, bottom_right_center, bottom_left_center
 
 
 def apply_perspective_transform(frame, src_points):
