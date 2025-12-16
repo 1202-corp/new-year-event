@@ -337,7 +337,15 @@ class Game:
                 # Continuously update to show debug window with camera feed
                 screen_width = self.screen.get_width()
                 screen_height = self.screen.get_height()
-                self.aruco_transform.update(screen_width, screen_height)
+                key = self.aruco_transform.update(screen_width, screen_height)
+                
+                # Check if SPACE was pressed in debug window (key code 32)
+                if key == 32:  # SPACE key
+                    if self.aruco_transform.calibrate(screen_width, screen_height):
+                        self.state = GameState.PLAYING
+                        logger.info("Aruco calibration successful. Starting game.")
+                    else:
+                        logger.warning("Calibration failed. Make sure all 4 Aruco markers are visible.")
             return
         
         if self.state != GameState.PLAYING:
@@ -424,17 +432,6 @@ class Game:
         
         # Draw UI panel
         self.ui_panel.draw(self.screen, 0, len(self.calibration_characters), len(self.calibration_characters))
-        
-        # Draw calibration instruction
-        from game.scaling import get_scaling
-        scaling = get_scaling()
-        font = pygame.font.Font(None, scaling.scale_font_size(48))
-        text = font.render("Place Aruco markers in projector corners", True, WHITE)
-        text2 = font.render("Press SPACE to calibrate and start game", True, WHITE)
-        text_rect = text.get_rect(center=(self.screen.get_width() // 2, self.screen.get_height() // 2 - 50))
-        text2_rect = text2.get_rect(center=(self.screen.get_width() // 2, self.screen.get_height() // 2 + 10))
-        self.screen.blit(text, text_rect)
-        self.screen.blit(text2, text2_rect)
     
     def _draw_game(self) -> None:
         """Draw normal game screen"""

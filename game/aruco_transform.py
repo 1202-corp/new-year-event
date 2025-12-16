@@ -303,6 +303,9 @@ class ArucoTransform:
         Args:
             game_screen_width: Width of the game screen
             game_screen_height: Height of the game screen
+        
+        Returns:
+            Key code from debug window (if not calibrated) or transform validity (if calibrated)
         """
         # If already calibrated, use stored positions
         if self.calibrated and self.calibration_marker_positions is not None:
@@ -318,9 +321,10 @@ class ArucoTransform:
         frame = self.read_camera_frame()
         if frame is None:
             self.transform_valid = False
+            key = None
             if self.debug_enabled:
-                self._draw_debug_no_frame()
-            return False
+                key = self._draw_debug_no_frame()
+            return key
         
         h, w = frame.shape[:2]
         screen_center = (w // 2, h // 2)
@@ -333,9 +337,10 @@ class ArucoTransform:
         
         if any(p is None for p in [top_left, top_right, bottom_right, bottom_left]):
             self.transform_valid = False
+            key = None
             if self.debug_enabled:
-                self._draw_debug(frame, corners, ids, None, None, None, None)
-            return False
+                key = self._draw_debug(frame, corners, ids, None, None, None, None)
+            return key
         
         # Source points (game screen rectangle - what we have)
         src_points = np.array([
@@ -390,31 +395,41 @@ class ArucoTransform:
         self.inverse_transform_matrix = cv2.getPerspectiveTransform(dst_points, src_points)
         self.transform_valid = True
         
-        # Draw debug windows
+        # Draw debug windows and get key code
+        key = None
         if self.debug_enabled:
-            self._draw_debug(frame, corners, ids, top_left, top_right, bottom_right, bottom_left, 
+            key = self._draw_debug(frame, corners, ids, top_left, top_right, bottom_right, bottom_left, 
                            src_points, dst_points, game_screen_width, game_screen_height)
         
-        return True
+        return key
     
     def _draw_debug_no_frame(self):
-        """Draw debug window when no frame is available"""
+        """Draw debug window when no frame is available
+        
+        Returns:
+            Key code from cv2.waitKey() or None
+        """
         if not self.debug_enabled:
-            return
+            return None
         
         # Create empty frame with message
         debug_frame = np.zeros((480, 640, 3), dtype=np.uint8)
         cv2.putText(debug_frame, "No camera frame", (50, 240),
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         cv2.imshow("Aruco Debug", debug_frame)
-        # Process OpenCV window events
-        cv2.waitKey(1)
+        # Process OpenCV window events and return key code
+        key = cv2.waitKey(1) & 0xFF
+        return key if key != 255 else None
     
     def _draw_debug(self, frame, corners, ids, top_left, top_right, bottom_right, bottom_left,
                    src_points=None, dst_points=None, game_width=None, game_height=None):
-        """Draw debug visualization of Aruco detection and transform"""
+        """Draw debug visualization of Aruco detection and transform
+        
+        Returns:
+            Key code from cv2.waitKey() or None
+        """
         if not self.debug_enabled:
-            return
+            return None
         
         # Create debug frame (copy of original)
         debug_frame = frame.copy()
@@ -538,7 +553,9 @@ class ArucoTransform:
             cv2.imshow("Aruco Debug", small_frame)
         
         # Process OpenCV window events (required for window updates)
-        cv2.waitKey(1)
+        # Return key code for handling in game loop
+        key = cv2.waitKey(1) & 0xFF
+        return key if key != 255 else None
     
     def apply_transform(self, game_surface: np.ndarray) -> Optional[np.ndarray]:
         """
