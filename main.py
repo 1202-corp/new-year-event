@@ -7,13 +7,8 @@ import sys
 # Remove QT_PLUGIN_PATH to avoid plugin loading issues
 os.environ.pop("QT_PLUGIN_PATH", None)
 # Try to use GTK backend instead of Qt (if available)
-# This must be set before importing cv2
-try:
-    import cv2
-    # Check if we can use GTK backend
-    os.environ["OPENCV_GUI_BACKEND"] = "GTK"
-except:
-    pass
+# This must be set BEFORE importing cv2 (which happens in game modules)
+os.environ["OPENCV_GUI_BACKEND"] = "GTK"
 
 # CRITICAL: Load .env and set DISPLAY BEFORE importing pygame
 # This must be done before any pygame imports
