@@ -492,6 +492,7 @@ class ArucoTransform:
         # Resize for display (half size)
         small_frame = cv2.resize(debug_frame, (w // 2, h // 2))
         try:
+            logger.debug(f"Attempting to show debug window (size: {small_frame.shape})")
             cv2.imshow("Aruco Debug: Camera View", small_frame)
             # Process OpenCV window events (required for window updates)
             cv2.waitKey(1)
@@ -503,6 +504,8 @@ class ArucoTransform:
             # Only log and disable on first failure
             if not self._debug_initialized:
                 logger.warning(f"Could not display debug window: {e}. Debug windows disabled.")
+                import traceback
+                logger.warning(traceback.format_exc())
                 self.debug_enabled = False
             return
         
