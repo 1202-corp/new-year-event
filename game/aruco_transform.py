@@ -227,15 +227,44 @@ class ArucoTransform:
         
         # Destination points (Aruco marker inner corners from camera - where we want to map to)
         # These define where the corners of the game window should appear on the projector
-        dst_points = np.array([
+        dst_points_camera = np.array([
             top_left,         # Top-left marker corner
             top_right,        # Top-right marker corner
             bottom_right,     # Bottom-right marker corner
             bottom_left       # Bottom-left marker corner
         ], dtype=np.float32)
         
+        # Scale marker positions from camera coordinates to game screen size
+        # Calculate bounding box of markers in camera coordinates
+        x_coords = dst_points_camera[:, 0]
+        y_coords = dst_points_camera[:, 1]
+        min_x = float(np.min(x_coords))
+        max_x = float(np.max(x_coords))
+        min_y = float(np.min(y_coords))
+        max_y = float(np.max(y_coords))
+        
+        bbox_width = max_x - min_x
+        bbox_height = max_y - min_y
+        
+        # Normalize marker positions to [0, 1] range based on bounding box
+        if bbox_width > 0 and bbox_height > 0:
+            dst_points_normalized = dst_points_camera.copy()
+            dst_points_normalized[:, 0] = (dst_points_normalized[:, 0] - min_x) / bbox_width
+            dst_points_normalized[:, 1] = (dst_points_normalized[:, 1] - min_y) / bbox_height
+        else:
+            dst_points_normalized = dst_points_camera.copy()
+        
+        # Scale normalized positions to game screen dimensions
+        dst_points = dst_points_normalized.copy()
+        dst_points[:, 0] *= game_screen_width
+        dst_points[:, 1] *= game_screen_height
+        
+        # Store output dimensions (same as game screen)
+        self._output_width = game_screen_width
+        self._output_height = game_screen_height
+        
         # Calculate perspective transform matrix
-        # This transforms the rectangular game window to match the Aruco marker corners
+        # This transforms the rectangular game window to match the scaled Aruco marker corners
         self.transform_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
         self.inverse_transform_matrix = cv2.getPerspectiveTransform(dst_points, src_points)
         self.transform_valid = True
