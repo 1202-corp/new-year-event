@@ -226,10 +226,15 @@ def main():
                 cv2.putText(transformed_frame, "Waiting for 4 markers...", (10, frame.shape[0] // 2),
                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         
-        # Display frames
-        cv2.imshow("Camera View (with Aruco markers)", frame_with_markers)
+        # Display frames (resized to half size)
+        h, w = frame_with_markers.shape[:2]
+        small_frame = cv2.resize(frame_with_markers, (w // 2, h // 2))
+        cv2.imshow("Camera View (with Aruco markers)", small_frame)
+        
         if transformed_frame is not None:
-            cv2.imshow("Transformed View", transformed_frame)
+            h_t, w_t = transformed_frame.shape[:2]
+            small_transformed = cv2.resize(transformed_frame, (w_t // 2, h_t // 2))
+            cv2.imshow("Transformed View", small_transformed)
         
         # Exit on 'q' key
         if cv2.waitKey(1) & 0xFF == ord('q'):
