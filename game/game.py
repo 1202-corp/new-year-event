@@ -116,25 +116,26 @@ class Game:
     
     def _update_scaling(self) -> None:
         """Updates scaling based on current screen size and updates all existing objects"""
-        old_width = get_scaling().current_width if get_scaling().current_width > 0 else self.screen.get_width()
-        old_height = get_scaling().current_height if get_scaling().current_height > 0 else self.screen.get_height()
+        scaling = get_scaling()
+        old_width = scaling.current_width if scaling.current_width > 0 else 0
+        old_height = scaling.current_height if scaling.current_height > 0 else 0
         
         new_width = self.screen.get_width()
         new_height = self.screen.get_height()
         
         # Update scaling
-        scaling = get_scaling()
         scaling.update(new_width, new_height)
         self._update_fonts()
         
         # Update all existing characters to match new scale
-        if old_width > 0 and old_height > 0:
+        # Only scale if we had a previous size (not first initialization)
+        if old_width > 0 and old_height > 0 and (old_width != new_width or old_height != new_height):
             scale_x_ratio = new_width / old_width
             scale_y_ratio = new_height / old_height
             
             for character in self.characters:
                 if character.is_alive:
-                    # Update character size
+                    # Update character size first
                     character.update_scaling()
                     
                     # Update character position (scale relative to new screen size)
@@ -143,6 +144,11 @@ class Game:
                     
                     # Update character speed (scale with width)
                     character.speed = character.speed * scale_x_ratio
+        else:
+            # First initialization or no size change - just update scaling for new characters
+            for character in self.characters:
+                if character.is_alive:
+                    character.update_scaling()
     
     def _update_fonts(self) -> None:
         """Updates font sizes based on current scaling"""
