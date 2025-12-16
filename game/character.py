@@ -173,7 +173,7 @@ class Character:
         
         # Draw shadow first (below character)
         # Shadow is a scaled-up version of the character shape (square/rectangle)
-        shadow_scale = 1.15  # Shadow is 15% larger
+        shadow_scale = 1.4  # Shadow is 40% larger (increased from 15%)
         shadow_width = int(self.width * shadow_scale)
         shadow_height = int(self.height * shadow_scale)
         
@@ -183,12 +183,29 @@ class Character:
         shadow_x = self.x - (shadow_width - self.width) // 2
         shadow_y = self.y + self.height // 2 - shadow_height // 2 + shadow_offset_y + self.height_offset
         
-        # Create semi-transparent shadow surface
+        # Create semi-transparent shadow surface with soft edges
         shadow_surface = pygame.Surface((shadow_width, shadow_height), pygame.SRCALPHA)
-        shadow_color = (10, 10, 20, 150)  # Dark color with alpha (semi-transparent)
         
-        # Draw shadow as rectangle (same shape as character, but larger)
-        pygame.draw.rect(shadow_surface, shadow_color, (0, 0, shadow_width, shadow_height))
+        # Draw soft shadow using multiple layers with decreasing opacity (softer edges)
+        # Outer layers are more transparent for soft edge effect
+        shadow_base_color = (10, 10, 20)
+        blur_layers = 5  # Number of layers for softness
+        
+        for i in range(blur_layers):
+            layer_scale = 1.0 - (i * 0.15)  # Each layer is smaller
+            layer_width = int(shadow_width * layer_scale)
+            layer_height = int(shadow_height * layer_scale)
+            layer_x = (shadow_width - layer_width) // 2
+            layer_y = (shadow_height - layer_height) // 2
+            
+            # Decrease alpha for outer layers (softer edges)
+            layer_alpha = max(30, 100 - (i * 15))  # More transparent (increased transparency)
+            layer_color = (*shadow_base_color, layer_alpha)
+            
+            # Draw layer
+            layer_surface = pygame.Surface((layer_width, layer_height), pygame.SRCALPHA)
+            pygame.draw.rect(layer_surface, layer_color, (0, 0, layer_width, layer_height))
+            shadow_surface.blit(layer_surface, (layer_x, layer_y))
         
         # Blit shadow to screen (will be semi-transparent and can overlap enemies)
         screen.blit(shadow_surface, (shadow_x, shadow_y))
