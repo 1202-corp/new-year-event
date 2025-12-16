@@ -55,6 +55,7 @@ def main():
     
     # Create window for camera view
     cv2.namedWindow('Camera Settings Tuner', cv2.WINDOW_NORMAL)
+    cv2.resizeWindow('Camera Settings Tuner', 1280, 720)  # Set initial window size
     
     # Create trackbars for various camera properties
     # Note: Some properties may not be supported by all cameras
