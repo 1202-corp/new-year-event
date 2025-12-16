@@ -121,26 +121,33 @@ class UIPanel:
             logger.warning(f"Camera thread initialization failed: {e}")
     
     def update(self, screen_width: int, screen_height: int) -> None:
-        """Update panel dimensions and process camera frames"""
+        """Update panel dimensions"""
         self.screen_width = screen_width
         self.screen_height = screen_height
-        self.panel_height = int(screen_height * Config.UI_PANEL_HEIGHT_PERCENT / 100)
-        self.panel_y = screen_height - self.panel_height
+        
+        # Apply safe area margin to panel position
+        from game.safe_area import get_safe_area_margin
+        margin = get_safe_area_margin(screen_width, screen_height, 0)
+        
+        # Panel height and position (accounting for safe area)
+        self.panel_height = int((screen_height - margin * 2) * Config.UI_PANEL_HEIGHT_PERCENT / 100)
+        self.panel_y = screen_height - self.panel_height - margin  # Position above bottom margin
         
         # Update camera window size based on panel height (square, with padding)
         self.camera_window_size = self.panel_height - 40  # Leave 20px padding on top and bottom
-        
-        # Process camera frame asynchronously (non-blocking)
-        if self.camera_thread and self.camera_thread.camera_enabled:
-            frame = self.camera_thread.get_latest_frame()
-            if frame is not None:
-                self._process_camera_frame(frame)
         
         # Update fonts
         scaling = get_scaling()
         self.font_large = pygame.font.Font(None, scaling.scale_font_size(36))
         self.font_medium = pygame.font.Font(None, scaling.scale_font_size(24))
         self.font_small = pygame.font.Font(None, scaling.scale_font_size(18))
+    
+    def process_camera_frame(self) -> None:
+        """Process camera frame asynchronously (non-blocking) - call this every frame"""
+        if self.camera_thread and self.camera_thread.camera_enabled:
+            frame = self.camera_thread.get_latest_frame()
+            if frame is not None:
+                self._process_camera_frame(frame)
     
     def _process_camera_frame(self, frame: 'np.ndarray') -> None:
         """Process camera frame: crop to square and convert to pygame Surface"""
@@ -173,14 +180,18 @@ class UIPanel:
     
     def draw(self, screen: pygame.Surface, score: int, enemies_count: int, max_enemies: int) -> None:
         """Draw the UI panel"""
-        # Draw panel background
-        panel_rect = pygame.Rect(0, self.panel_y, self.screen_width, self.panel_height)
+        # Apply safe area margin
+        from game.safe_area import get_safe_area_margin
+        margin = get_safe_area_margin(self.screen_width, self.screen_height, 0)
+        
+        # Draw panel background (respecting safe area margins)
+        panel_rect = pygame.Rect(margin, self.panel_y, self.screen_width - margin * 2, self.panel_height)
         pygame.draw.rect(screen, DARK_BLUE, panel_rect)
         pygame.draw.rect(screen, WHITE, panel_rect, 2)  # Border
         
-        # Draw camera preview (right side, bottom-aligned)
+        # Draw camera preview (right side, bottom-aligned, respecting safe area)
         # Position: right edge with padding, vertically centered in panel
-        camera_x = self.screen_width - self.camera_window_size - 20  # 20px padding from right edge
+        camera_x = self.screen_width - self.camera_window_size - 20 - margin  # 20px padding + margin from right edge
         camera_y = self.panel_y + (self.panel_height - self.camera_window_size) // 2  # Centered vertically
         
         if self.current_frame_surface:

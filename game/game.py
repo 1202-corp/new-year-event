@@ -269,6 +269,9 @@ class Game:
         # Effective game area height (excluding UI panel)
         game_area_height = screen_height - ui_panel_height
         
+        # Process camera frames every frame (not just on resize)
+        self.ui_panel.process_camera_frame()
+        
         for character in self.characters:
             character.update(dt, screen_width=screen_width, screen_height=game_area_height)
         
@@ -316,6 +319,9 @@ class Game:
         
         # Draw safe area borders first (will be covered by characters if they overlap)
         self.draw_safe_area()
+        
+        # Draw lane lines (visual guides)
+        self.draw_lane_lines()
         
         # Draw characters (only in game area, above UI panel)
         ui_panel_height = self.ui_panel.panel_height
