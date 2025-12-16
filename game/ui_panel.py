@@ -23,10 +23,10 @@ class UIPanel:
         self.panel_height = int(screen_height * Config.UI_PANEL_HEIGHT_PERCENT / 100)
         self.panel_y = screen_height - self.panel_height
         
-        # Camera settings
+        # Camera settings - size based on panel height (square, with padding)
+        self.camera_window_size = self.panel_height - 40  # Leave 20px padding on top and bottom
         self.camera = None
         self.camera_enabled = False
-        self.camera_window_size = int(Config.CAMERA_WINDOW_SIZE)
         self._init_camera()
         
         # Fonts
@@ -36,20 +36,20 @@ class UIPanel:
         self.font_small = pygame.font.Font(None, scaling.scale_font_size(18))
     
     def _init_camera(self) -> None:
-        """Initialize camera for preview"""
+        """Initialize camera for audience preview"""
         if not CV2_AVAILABLE:
             logger.warning("OpenCV not available, camera preview disabled")
             return
         try:
-            # Try to open camera (index from config)
-            self.camera = cv2.VideoCapture(Config.CAMERA_INDEX)
+            # Try to open audience camera (for face display)
+            self.camera = cv2.VideoCapture(Config.AUDIENCE_CAMERA_INDEX)
             if self.camera.isOpened():
-                self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, Config.CAMERA_WIDTH)
-                self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, Config.CAMERA_HEIGHT)
+                self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, Config.AUDIENCE_CAMERA_WIDTH)
+                self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, Config.AUDIENCE_CAMERA_HEIGHT)
                 self.camera_enabled = True
-                logger.info(f"Camera {Config.CAMERA_INDEX} initialized successfully")
+                logger.info(f"Audience camera {Config.AUDIENCE_CAMERA_INDEX} initialized successfully")
             else:
-                logger.warning(f"Could not open camera {Config.CAMERA_INDEX}")
+                logger.warning(f"Could not open audience camera {Config.AUDIENCE_CAMERA_INDEX}")
         except Exception as e:
             logger.warning(f"Camera initialization failed: {e}")
     
@@ -59,6 +59,9 @@ class UIPanel:
         self.screen_height = screen_height
         self.panel_height = int(screen_height * Config.UI_PANEL_HEIGHT_PERCENT / 100)
         self.panel_y = screen_height - self.panel_height
+        
+        # Update camera window size based on panel height (square, with padding)
+        self.camera_window_size = self.panel_height - 40  # Leave 20px padding on top and bottom
         
         # Update fonts
         scaling = get_scaling()
@@ -97,9 +100,10 @@ class UIPanel:
         pygame.draw.rect(screen, DARK_BLUE, panel_rect)
         pygame.draw.rect(screen, WHITE, panel_rect, 2)  # Border
         
-        # Draw camera preview (right side)
-        camera_x = self.screen_width - self.camera_window_size - 20
-        camera_y = self.panel_y + (self.panel_height - self.camera_window_size) // 2
+        # Draw camera preview (right side, bottom-aligned)
+        # Position: right edge with padding, vertically centered in panel
+        camera_x = self.screen_width - self.camera_window_size - 20  # 20px padding from right edge
+        camera_y = self.panel_y + (self.panel_height - self.camera_window_size) // 2  # Centered vertically
         
         camera_frame = self.get_camera_frame()
         if camera_frame:

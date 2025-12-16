@@ -32,16 +32,16 @@ class CharacterSpawner:
         ]
         
         self.speed_map = {
-            CharacterType.SNOWMAN: 80,  # Faster for flying
-            CharacterType.GRINCH: 50,   # Slower for patrolling
-            CharacterType.SANTA: 60,    # Medium for patrolling
-            CharacterType.ELF: 100,     # Fast for flying
-            CharacterType.RUDOLPH: 40   # Slow for patrolling
+            CharacterType.SNOWMAN: 160,  # Faster for flying (doubled)
+            CharacterType.GRINCH: 100,   # Slower for patrolling (doubled)
+            CharacterType.SANTA: 120,    # Medium for patrolling (doubled)
+            CharacterType.ELF: 200,     # Fast for flying (doubled)
+            CharacterType.RUDOLPH: 80   # Slow for patrolling (doubled)
         }
         
         self.flying_speed_map = {
-            CharacterType.SNOWMAN: 150,  # Fast flying
-            CharacterType.ELF: 200        # Very fast flying
+            CharacterType.SNOWMAN: 300,  # Fast flying (doubled)
+            CharacterType.ELF: 400        # Very fast flying (doubled)
         }
     
     def calculate_lane_y(self, lane: int, screen_height: int, ui_panel_height: int, margin: int) -> int:

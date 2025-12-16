@@ -33,10 +33,15 @@ class Config:
     MAX_ENEMIES: int = int(os.getenv("MAX_ENEMIES", "20"))
     NUM_LANES: int = int(os.getenv("NUM_LANES", "4"))
     
-    # Camera settings
-    CAMERA_INDEX: int = int(os.getenv("CAMERA_INDEX", "0"))
-    CAMERA_WIDTH: int = int(os.getenv("CAMERA_WIDTH", "1920"))
-    CAMERA_HEIGHT: int = int(os.getenv("CAMERA_HEIGHT", "1080"))
+    # Camera settings for snowball detection
+    SNOWBALL_CAMERA_INDEX: int = int(os.getenv("SNOWBALL_CAMERA_INDEX", "0"))
+    SNOWBALL_CAMERA_WIDTH: int = int(os.getenv("SNOWBALL_CAMERA_WIDTH", "1920"))
+    SNOWBALL_CAMERA_HEIGHT: int = int(os.getenv("SNOWBALL_CAMERA_HEIGHT", "1080"))
+    
+    # Camera settings for audience face display
+    AUDIENCE_CAMERA_INDEX: int = int(os.getenv("AUDIENCE_CAMERA_INDEX", "1"))
+    AUDIENCE_CAMERA_WIDTH: int = int(os.getenv("AUDIENCE_CAMERA_WIDTH", "1920"))
+    AUDIENCE_CAMERA_HEIGHT: int = int(os.getenv("AUDIENCE_CAMERA_HEIGHT", "1080"))
     
     # Aruco settings
     ARUCO_DICT_TYPE: int = int(os.getenv("ARUCO_DICT_TYPE", "4"))
