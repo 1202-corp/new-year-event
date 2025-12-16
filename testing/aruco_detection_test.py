@@ -1,4 +1,10 @@
 """Test script for Aruco marker detection and perspective transformation"""
+import sys
+import os
+
+# Add parent directory to path to import game modules
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import cv2
 import numpy as np
 from game.config import Config
