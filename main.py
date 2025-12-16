@@ -7,13 +7,17 @@ import sys
 from dotenv import load_dotenv
 load_dotenv()
 
+# Setup logging first
+from game.logger import setup_logging
+logger = setup_logging()
+
 # Set DISPLAY environment variable if needed
 display_number = int(os.getenv("DISPLAY_NUMBER", "0"))
 if display_number != 0:
     display_var = f":{display_number}.0"
     os.environ["DISPLAY"] = display_var
-    print(f"[Main] Setting DISPLAY to: {display_var}")
-    print(f"[Main] Current DISPLAY: {os.environ.get('DISPLAY')}")
+    logger.info(f"Setting DISPLAY to: {display_var}")
+    logger.info(f"Current DISPLAY: {os.environ.get('DISPLAY')}")
 
 # Now we can import game modules (which import pygame)
 from game.config import Config
@@ -23,8 +27,8 @@ from game.game import Game
 def main():
     """Entry point"""
     # Verify configuration
-    print(f"[Main] DISPLAY_NUMBER from config: {Config.DISPLAY_NUMBER}")
-    print(f"[Main] DISPLAY environment variable: {os.environ.get('DISPLAY')}")
+    logger.info(f"DISPLAY_NUMBER from config: {Config.DISPLAY_NUMBER}")
+    logger.info(f"DISPLAY environment variable: {os.environ.get('DISPLAY')}")
     
     # Create and run game
     game = Game()

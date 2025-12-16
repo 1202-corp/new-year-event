@@ -1,6 +1,7 @@
 """Main game class"""
 import pygame
 import sys
+import os
 from typing import List, Tuple
 from game.config import Config
 from game.constants import DARK_BLUE, WHITE
@@ -10,6 +11,9 @@ from game.spawner import CharacterSpawner
 from game.score import ScoreManager
 from game.ui.menu import PauseMenu
 from game.scaling import init_scaling, get_scaling
+from game.logger import get_logger
+
+logger = get_logger()
 
 
 class Game:
@@ -21,38 +25,63 @@ class Game:
         
         # Check available displays and get info
         display_to_use = 0
+        display_x_offset = 0
+        
         try:
             num_displays = pygame.display.get_num_displays()
-            print(f"[Game] Number of displays detected: {num_displays}")
+            logger.info(f"Number of displays detected: {num_displays}")
             
             if Config.DISPLAY_NUMBER >= num_displays:
-                print(f"[Game] WARNING: DISPLAY_NUMBER={Config.DISPLAY_NUMBER} >= available displays ({num_displays})")
-                print(f"[Game] Using display 0 instead")
+                logger.warning(f"DISPLAY_NUMBER={Config.DISPLAY_NUMBER} >= available displays ({num_displays})")
+                logger.info("Using display 0 instead")
+                display_to_use = 0
             else:
                 display_to_use = Config.DISPLAY_NUMBER
-                print(f"[Game] Using display {display_to_use}")
+                logger.info(f"Using display {display_to_use}")
             
-            # Get display info
+            # Get display info and calculate position offset
             if num_displays > 0:
                 try:
                     desktop_sizes = pygame.display.get_desktop_sizes()
-                    print(f"[Game] Desktop sizes: {desktop_sizes}")
+                    logger.info(f"Desktop sizes: {desktop_sizes}")
+                    
                     if display_to_use < len(desktop_sizes):
-                        print(f"[Game] Display {display_to_use} size: {desktop_sizes[display_to_use]}")
+                        logger.info(f"Display {display_to_use} size: {desktop_sizes[display_to_use]}")
+                        
+                        # Calculate X offset for positioning window on correct display
+                        # Sum up widths of all displays before the target one
+                        for i in range(display_to_use):
+                            if i < len(desktop_sizes):
+                                display_x_offset += desktop_sizes[i][0]
+                        
+                        logger.info(f"Calculated X offset for display {display_to_use}: {display_x_offset}")
                 except Exception as e:
-                    print(f"[Game] Could not get desktop sizes: {e}")
+                    logger.error(f"Could not get desktop sizes: {e}")
         except Exception as e:
-            print(f"[Game] Could not query displays: {e}")
+            logger.error(f"Could not query displays: {e}")
+        
+        # Set window position BEFORE creating window (SDL approach)
+        if display_to_use > 0 and display_x_offset > 0:
+            # SDL_VIDEO_WINDOW_POS format: "x,y" or "x" for x only
+            window_pos = f"{display_x_offset},0"
+            os.environ["SDL_VIDEO_WINDOW_POS"] = window_pos
+            logger.info(f"Setting SDL_VIDEO_WINDOW_POS to: {window_pos}")
         
         # Create window
-        # Note: pygame.display.set_mode() doesn't support selecting display directly
-        # The DISPLAY environment variable should handle this for X11
         self.screen = pygame.display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
         pygame.display.set_caption("New Year Arcade Game")
         
-        # Get window position info
-        window_info = pygame.display.get_wm_info()
-        print(f"[Game] Window info: {window_info}")
+        # Try to position window after creation (fallback method)
+        if display_to_use > 0 and display_x_offset > 0:
+            try:
+                # Use window manager info to position window
+                window_info = pygame.display.get_wm_info()
+                logger.debug(f"Window info: {window_info}")
+                
+                # Window created - SDL_VIDEO_WINDOW_POS should have positioned it
+                logger.info("Window created, positioned using SDL_VIDEO_WINDOW_POS")
+            except Exception as e:
+                logger.debug(f"Could not get window info: {e}")
         
         self.clock = pygame.time.Clock()
         
@@ -132,7 +161,7 @@ class Game:
                 character.is_alive = False
                 points = character.points
                 self.score_manager.add_points(points)
-                print(f"Killed {character.type.value}! Points: +{points} (Total: {self.score_manager.get_score()})")
+                logger.debug(f"Killed {character.type.value}! Points: +{points} (Total: {self.score_manager.get_score()})")
                 break
     
     def handle_events(self) -> None:
