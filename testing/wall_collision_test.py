@@ -15,42 +15,67 @@ from game.wall_collision_detector import WallCollisionDetector
 logger = get_logger()
 
 
-def create_combined_view(result):
-    """Create combined view with camera frame and motion mask side by side"""
+def create_combined_view(result, original_frame):
+    """Create combined view with 3 images vertically: original camera, transformed camera, motion mask"""
     if 'transformed_frame' not in result or 'motion_mask' not in result:
         return None
     
-    camera_frame = result['transformed_frame'].copy()
+    original_camera = original_frame.copy()
+    transformed_frame = result['transformed_frame'].copy()
     motion_mask = result['motion_mask']
     
     # Convert motion mask to color
     motion_colored = cv2.applyColorMap(motion_mask, cv2.COLORMAP_JET)
     
-    # Draw ball position on camera frame
+    # Draw ball position on transformed frame
     if result['ball_detected'] and result['ball_position']:
         x, y = result['ball_position']
-        cv2.circle(camera_frame, (x, y), 20, (0, 255, 255), 3)
-        cv2.putText(camera_frame, "BALL", (x + 25, y),
+        cv2.circle(transformed_frame, (x, y), 20, (0, 255, 255), 3)
+        cv2.putText(transformed_frame, "BALL", (x + 25, y),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
     
-    # Draw game objects mask overlay on camera frame (green)
+    # Draw game objects mask overlay on transformed frame (green)
     if 'game_objects_mask' in result:
-        mask_colored = np.zeros_like(camera_frame)
-        mask_colored[result['game_objects_mask'] > 0] = [0, 255, 0]
-        camera_frame = cv2.addWeighted(camera_frame, 0.8, mask_colored, 0.2, 0)
+        mask_colored_overlay = np.zeros_like(transformed_frame)
+        mask_colored_overlay[result['game_objects_mask'] > 0] = [0, 255, 0]
+        transformed_frame = cv2.addWeighted(transformed_frame, 0.8, mask_colored_overlay, 0.2, 0)
+    
+    # Resize all to same width (use transformed frame width as reference)
+    target_w = transformed_frame.shape[1]
+    target_h = transformed_frame.shape[0]
+    
+    # Resize original camera to match transformed frame size
+    original_h, original_w = original_camera.shape[:2]
+    original_ratio = original_h / original_w
+    new_original_h = int(target_w * original_ratio)
+    original_camera_resized = cv2.resize(original_camera, (target_w, new_original_h))
+    
+    # Resize motion mask to match transformed frame size
+    motion_h, motion_w = motion_mask.shape[:2]
+    motion_ratio = motion_h / motion_w
+    new_motion_h = int(target_w * motion_ratio)
+    motion_colored_resized = cv2.resize(motion_colored, (target_w, new_motion_h))
     
     # Add labels
-    cv2.putText(camera_frame, "Camera View", (10, 30),
+    cv2.putText(original_camera_resized, "Original Camera", (10, 30),
                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     
-    cv2.putText(motion_colored, "Motion Mask", (10, 30),
+    cv2.putText(transformed_frame, "Transformed Camera (Aruco)", (10, 30),
                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     
-    # Combine vertically (camera on top, motion mask on bottom)
-    h, w = camera_frame.shape[:2]
-    combined = np.zeros((h * 2, w, 3), dtype=np.uint8)
-    combined[0:h, :] = camera_frame
-    combined[h:, :] = motion_colored
+    cv2.putText(motion_colored_resized, "Motion Mask", (10, 30),
+               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    
+    # Combine vertically: original camera, transformed camera, motion mask
+    total_height = new_original_h + target_h + new_motion_h
+    combined = np.zeros((total_height, target_w, 3), dtype=np.uint8)
+    
+    y_offset = 0
+    combined[y_offset:y_offset + new_original_h, :] = original_camera_resized
+    y_offset += new_original_h
+    combined[y_offset:y_offset + target_h, :] = transformed_frame
+    y_offset += target_h
+    combined[y_offset:y_offset + new_motion_h, :] = motion_colored_resized
     
     return combined
 
@@ -104,13 +129,13 @@ def main():
         # Detect collision
         result = detector.detect_collision(frame, game_objects)
         
-        # Create combined view
-        combined = create_combined_view(result)
+        # Create combined view with 3 images
+        combined = create_combined_view(result, frame)
         if combined is not None:
             # Resize for display
             h, w = combined.shape[:2]
             small_combined = cv2.resize(combined, (w // 2, h // 2))
-            cv2.imshow("Motion Detection: Camera + Motion Mask", small_combined)
+            cv2.imshow("Motion Detection: Original | Transformed | Motion Mask", small_combined)
         else:
             # Fallback if no transformed frame
             cv2.imshow("Motion Detection", frame)
