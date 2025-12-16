@@ -89,7 +89,6 @@ class Game:
         # Game state
         self.state = GameState.CALIBRATING if Config.CALIBRATION_ENABLED else GameState.PLAYING
         self.running = True
-        self.calibration_step = 0  # 0 = waiting for markers, 1 = showing preview, 2 = playing
         
         # Game components (MUST be initialized before _update_scaling)
         self.characters: List[Character] = []
@@ -309,24 +308,16 @@ class Game:
                     if mods & pygame.KMOD_ALT:
                         self.toggle_fullscreen()
                 elif event.key == pygame.K_SPACE:
-                    # Calibration: space bar to proceed
+                    # Calibration: space bar to calibrate and start game
                     if self.state == GameState.CALIBRATING:
-                        if self.calibration_step == 0:
-                            # First space: calibrate and show preview
-                            if self.aruco_transform is not None:
-                                screen_width = self.screen.get_width()
-                                screen_height = self.screen.get_height()
-                                if self.aruco_transform.calibrate(screen_width, screen_height):
-                                    self.calibration_step = 1
-                                    self.state = GameState.CALIBRATION_PREVIEW
-                                    logger.info("Calibration successful, showing preview. Press SPACE to start game.")
-                                else:
-                                    logger.warning("Calibration failed. Make sure all 4 Aruco markers are visible.")
-                        elif self.calibration_step == 1:
-                            # Second space: start game
-                            self.calibration_step = 2
-                            self.state = GameState.PLAYING
-                            logger.info("Starting game with calibrated transform.")
+                        if self.aruco_transform is not None:
+                            screen_width = self.screen.get_width()
+                            screen_height = self.screen.get_height()
+                            if self.aruco_transform.calibrate(screen_width, screen_height):
+                                self.state = GameState.PLAYING
+                                logger.info("Aruco calibration successful. Starting game.")
+                            else:
+                                logger.warning("Calibration failed. Make sure all 4 Aruco markers are visible.")
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left mouse button
@@ -347,10 +338,6 @@ class Game:
                 screen_width = self.screen.get_width()
                 screen_height = self.screen.get_height()
                 self.aruco_transform.update(screen_width, screen_height)
-            return
-        
-        # Don't update during calibration preview
-        if self.state == GameState.CALIBRATION_PREVIEW:
             return
         
         if self.state != GameState.PLAYING:
@@ -414,17 +401,12 @@ class Game:
         # Draw calibration screen or game
         if self.state == GameState.CALIBRATING:
             self._draw_calibration_screen()
-        elif self.state == GameState.CALIBRATION_PREVIEW:
-            self._draw_calibration_preview()
         else:
             self._draw_game()
         
-        # Apply Aruco perspective transform if enabled and calibrated
-        if self.aruco_transform is not None and (self.state == GameState.CALIBRATION_PREVIEW or 
-                                                  (self.state == GameState.PLAYING and self.aruco_transform.calibrated)):
-            self._apply_aruco_transform()
-        else:
-            pygame.display.flip()
+        # No Aruco transformation applied to game screen - game displays normally
+        # Aruco markers are only used for calibrating the snowball detection camera
+        pygame.display.flip()
     
     def _draw_calibration_screen(self) -> None:
         """Draw calibration screen with frozen characters"""
@@ -448,22 +430,7 @@ class Game:
         scaling = get_scaling()
         font = pygame.font.Font(None, scaling.scale_font_size(48))
         text = font.render("Place Aruco markers in projector corners", True, WHITE)
-        text2 = font.render("Press SPACE when ready", True, WHITE)
-        text_rect = text.get_rect(center=(self.screen.get_width() // 2, self.screen.get_height() // 2 - 50))
-        text2_rect = text2.get_rect(center=(self.screen.get_width() // 2, self.screen.get_height() // 2 + 10))
-        self.screen.blit(text, text_rect)
-        self.screen.blit(text2, text2_rect)
-    
-    def _draw_calibration_preview(self) -> None:
-        """Draw calibration preview (same as calibration screen but will be transformed)"""
-        self._draw_calibration_screen()
-        
-        # Draw preview instruction
-        from game.scaling import get_scaling
-        scaling = get_scaling()
-        font = pygame.font.Font(None, scaling.scale_font_size(48))
-        text = font.render("Preview: Corrected image", True, WHITE)
-        text2 = font.render("Press SPACE to start game", True, WHITE)
+        text2 = font.render("Press SPACE to calibrate and start game", True, WHITE)
         text_rect = text.get_rect(center=(self.screen.get_width() // 2, self.screen.get_height() // 2 - 50))
         text2_rect = text2.get_rect(center=(self.screen.get_width() // 2, self.screen.get_height() // 2 + 10))
         self.screen.blit(text, text_rect)
