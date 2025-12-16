@@ -342,7 +342,7 @@ class ArucoTransform:
         cv2.waitKey(1)
         
         # Show transformed preview if transform is valid
-        if self.transform_valid and src_points is not None and dst_points is not None:
+        if self.transform_valid:
             # Create a test rectangle to show transformation
             test_rect = np.zeros((game_height or h, game_width or w, 3), dtype=np.uint8)
             # Draw grid on test rectangle
