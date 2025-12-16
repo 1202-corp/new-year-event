@@ -98,20 +98,31 @@ class Game:
             # Switch to borderless fullscreen (windowed fullscreen)
             # Get screen dimensions
             screen_info = pygame.display.Info()
-            # Use RESIZABLE flag for better compatibility, window will be maximized
-            # NOFRAME might not work on all systems, so we'll use a different approach
+            screen_width = screen_info.current_w
+            screen_height = screen_info.current_h
+            
+            logger.info(f"Setting borderless fullscreen: {screen_width}x{screen_height}")
+            
+            # Use NOFRAME to remove window borders and set size to full screen
             try:
                 self.screen = pygame.display.set_mode(
-                    (screen_info.current_w, screen_info.current_h),
-                    pygame.RESIZABLE | pygame.NOFRAME
+                    (screen_width, screen_height),
+                    pygame.NOFRAME
                 )
-            except pygame.error:
-                # Fallback: use regular fullscreen if NOFRAME doesn't work
-                logger.warning("NOFRAME not supported, using regular fullscreen")
-                self.screen = pygame.display.set_mode(
-                    (screen_info.current_w, screen_info.current_h),
-                    pygame.RESIZABLE
-                )
+                logger.info("Borderless fullscreen activated with NOFRAME")
+            except pygame.error as e:
+                # Fallback: try with RESIZABLE flag
+                logger.warning(f"NOFRAME failed: {e}, trying with RESIZABLE")
+                try:
+                    self.screen = pygame.display.set_mode(
+                        (screen_width, screen_height),
+                        pygame.RESIZABLE | pygame.NOFRAME
+                    )
+                    logger.info("Borderless fullscreen activated with RESIZABLE|NOFRAME")
+                except pygame.error as e2:
+                    # Last fallback: regular fullscreen
+                    logger.warning(f"Borderless fullscreen not supported: {e2}, using regular fullscreen")
+                    self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         
         # Update scaling after window is set up
         self._update_scaling()
@@ -193,19 +204,28 @@ class Game:
         if self.fullscreen:
             # Borderless windowed fullscreen
             screen_info = pygame.display.Info()
+            screen_width = screen_info.current_w
+            screen_height = screen_info.current_h
+            
+            logger.info(f"Toggling to borderless fullscreen: {screen_width}x{screen_height}")
+            
             try:
                 self.screen = pygame.display.set_mode(
-                    (screen_info.current_w, screen_info.current_h),
-                    pygame.RESIZABLE | pygame.NOFRAME
+                    (screen_width, screen_height),
+                    pygame.NOFRAME
                 )
-            except pygame.error:
-                # Fallback: use regular fullscreen if NOFRAME doesn't work
-                logger.warning("NOFRAME not supported, using regular fullscreen")
-                self.screen = pygame.display.set_mode(
-                    (screen_info.current_w, screen_info.current_h),
-                    pygame.RESIZABLE
-                )
+            except pygame.error as e:
+                logger.warning(f"NOFRAME failed: {e}, trying with RESIZABLE")
+                try:
+                    self.screen = pygame.display.set_mode(
+                        (screen_width, screen_height),
+                        pygame.RESIZABLE | pygame.NOFRAME
+                    )
+                except pygame.error as e2:
+                    logger.warning(f"Borderless fullscreen not supported: {e2}, using regular fullscreen")
+                    self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         else:
+            logger.info("Toggling to windowed mode")
             self.screen = pygame.display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
         # Update scaling and all existing objects
         self._update_scaling()
