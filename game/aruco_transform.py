@@ -36,8 +36,9 @@ class ArucoTransform:
         self.calibrated = False
         self.calibration_marker_positions = None  # Store marker positions after calibration
         
-        # Debug display - start disabled, will be enabled if windows can be shown
-        self.debug_enabled = False  # Disable by default, enable only if cv2.imshow works
+        # Debug display - enable by default, will be disabled if windows can't be shown
+        self.debug_enabled = True  # Enable by default, disable if cv2.imshow fails
+        self._debug_initialized = False  # Track if debug windows were successfully initialized
         
         # Initialize camera
         self._init_camera()
@@ -418,10 +419,6 @@ class ArucoTransform:
         if not self.debug_enabled:
             return
         
-        # Try to enable debug on first successful call
-        if not hasattr(self, '_debug_initialized'):
-            self._debug_initialized = False
-        
         # Create debug frame (copy of original)
         debug_frame = frame.copy()
         h, w = debug_frame.shape[:2]
@@ -498,14 +495,15 @@ class ArucoTransform:
             cv2.imshow("Aruco Debug: Camera View", small_frame)
             # Process OpenCV window events (required for window updates)
             cv2.waitKey(1)
-            # Mark debug as successfully initialized
-            if not hasattr(self, '_debug_initialized') or not self._debug_initialized:
+            # Mark debug as successfully initialized on first successful call
+            if not self._debug_initialized:
                 self._debug_initialized = True
                 logger.info("Debug windows enabled successfully")
         except Exception as e:
-            logger.debug(f"Could not display debug window: {e}")
-            # Disable debug if windows can't be shown
-            self.debug_enabled = False
+            # Only log and disable on first failure
+            if not self._debug_initialized:
+                logger.warning(f"Could not display debug window: {e}. Debug windows disabled.")
+                self.debug_enabled = False
             return
         
         # Show transformed preview if transform is valid
@@ -535,9 +533,10 @@ class ArucoTransform:
                     # Process OpenCV window events
                     cv2.waitKey(1)
                 except Exception as e:
-                    logger.debug(f"Could not display transform preview: {e}")
-                    # Disable debug if windows can't be shown
-                    self.debug_enabled = False
+                    # Only log on failure, don't disable if already initialized
+                    if not self._debug_initialized:
+                        logger.warning(f"Could not display transform preview: {e}")
+                        self.debug_enabled = False
     
     def apply_transform(self, game_surface: np.ndarray) -> Optional[np.ndarray]:
         """
