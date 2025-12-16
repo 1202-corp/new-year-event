@@ -32,6 +32,9 @@ class ArucoTransform:
         self.inverse_transform_matrix = None
         self.transform_valid = False
         
+        # Debug display
+        self.debug_enabled = True  # Enable debug windows
+        
         # Initialize camera
         self._init_camera()
     
@@ -195,6 +198,8 @@ class ArucoTransform:
         frame = self.read_camera_frame()
         if frame is None:
             self.transform_valid = False
+            if self.debug_enabled:
+                self._draw_debug_no_frame()
             return False
         
         h, w = frame.shape[:2]
@@ -208,6 +213,8 @@ class ArucoTransform:
         
         if any(p is None for p in [top_left, top_right, bottom_right, bottom_left]):
             self.transform_valid = False
+            if self.debug_enabled:
+                self._draw_debug(frame, corners, ids, None, None, None, None)
             return False
         
         # Destination points (game screen rectangle)
@@ -231,7 +238,125 @@ class ArucoTransform:
         self.inverse_transform_matrix = cv2.getPerspectiveTransform(dst_points, src)
         self.transform_valid = True
         
+        # Draw debug windows
+        if self.debug_enabled:
+            self._draw_debug(frame, corners, ids, top_left, top_right, bottom_right, bottom_left, 
+                           src, dst_points, game_screen_width, game_screen_height)
+        
         return True
+    
+    def _draw_debug_no_frame(self):
+        """Draw debug window when no frame is available"""
+        if not self.debug_enabled:
+            return
+        
+        # Create empty frame with message
+        debug_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        cv2.putText(debug_frame, "No camera frame", (50, 240),
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.imshow("Aruco Debug: Camera View", debug_frame)
+    
+    def _draw_debug(self, frame, corners, ids, top_left, top_right, bottom_right, bottom_left,
+                   src_points=None, dst_points=None, game_width=None, game_height=None):
+        """Draw debug visualization of Aruco detection and transform"""
+        if not self.debug_enabled:
+            return
+        
+        # Create debug frame (copy of original)
+        debug_frame = frame.copy()
+        h, w = debug_frame.shape[:2]
+        
+        # Draw detected markers
+        if ids is not None:
+            try:
+                detector = cv2.aruco.ArucoDetector(self.aruco_dict)
+                for i, corner in enumerate(corners):
+                    corner = corner.astype(int)
+                    cv2.polylines(debug_frame, [corner], True, (0, 255, 0), 2)
+            except AttributeError:
+                cv2.aruco.drawDetectedMarkers(debug_frame, corners, ids)
+            
+            # Draw IDs
+            for i, marker_id in enumerate(ids.flatten()):
+                if marker_id in ARUCO_MARKER_IDS:
+                    corner_points = corners[i][0]
+                    center = np.mean(corner_points, axis=0).astype(int)
+                    cv2.putText(debug_frame, f"ID:{marker_id}", tuple(center),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        
+        # Draw corner points and labels
+        if top_left is not None:
+            cv2.circle(debug_frame, tuple(top_left.astype(int)), 10, (0, 255, 0), -1)
+            cv2.putText(debug_frame, "TL", tuple(top_left.astype(int) + [10, -10]),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        
+        if top_right is not None:
+            cv2.circle(debug_frame, tuple(top_right.astype(int)), 10, (255, 0, 0), -1)
+            cv2.putText(debug_frame, "TR", tuple(top_right.astype(int) + [10, -10]),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+        
+        if bottom_right is not None:
+            cv2.circle(debug_frame, tuple(bottom_right.astype(int)), 10, (0, 0, 255), -1)
+            cv2.putText(debug_frame, "BR", tuple(bottom_right.astype(int) + [10, 10]),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        
+        if bottom_left is not None:
+            cv2.circle(debug_frame, tuple(bottom_left.astype(int)), 10, (255, 255, 0), -1)
+            cv2.putText(debug_frame, "BL", tuple(bottom_left.astype(int) + [-30, 10]),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+        
+        # Draw transform quadrilateral
+        if all(p is not None for p in [top_left, top_right, bottom_right, bottom_left]):
+            pts = np.array([top_left, top_right, bottom_right, bottom_left], dtype=np.int32)
+            cv2.polylines(debug_frame, [pts], True, (255, 255, 255), 2)
+            
+            # Draw status
+            status_text = "Transform: VALID" if self.transform_valid else "Transform: INVALID"
+            status_color = (0, 255, 0) if self.transform_valid else (0, 0, 255)
+            cv2.putText(debug_frame, status_text, (10, 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, status_color, 2)
+            
+            if game_width and game_height:
+                info_text = f"Game: {game_width}x{game_height}"
+                cv2.putText(debug_frame, info_text, (10, 70),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        else:
+            cv2.putText(debug_frame, "Waiting for 4 markers...", (10, 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        
+        # Draw center point
+        screen_center = (w // 2, h // 2)
+        cv2.circle(debug_frame, screen_center, 5, (255, 255, 255), -1)
+        cv2.putText(debug_frame, "CENTER", (screen_center[0] + 10, screen_center[1]),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        
+        # Resize for display (half size)
+        small_frame = cv2.resize(debug_frame, (w // 2, h // 2))
+        cv2.imshow("Aruco Debug: Camera View", small_frame)
+        
+        # Show transformed preview if transform is valid
+        if self.transform_valid and src_points is not None and dst_points is not None:
+            # Create a test rectangle to show transformation
+            test_rect = np.zeros((game_height or h, game_width or w, 3), dtype=np.uint8)
+            # Draw grid on test rectangle
+            grid_size = 50
+            for x in range(0, test_rect.shape[1], grid_size):
+                cv2.line(test_rect, (x, 0), (x, test_rect.shape[0]), (100, 100, 100), 1)
+            for y in range(0, test_rect.shape[0], grid_size):
+                cv2.line(test_rect, (0, y), (test_rect.shape[1], y), (100, 100, 100), 1)
+            
+            # Draw corners on test rectangle
+            corner_size = 20
+            cv2.circle(test_rect, (0, 0), corner_size, (0, 255, 0), -1)  # TL
+            cv2.circle(test_rect, (test_rect.shape[1], 0), corner_size, (255, 0, 0), -1)  # TR
+            cv2.circle(test_rect, (test_rect.shape[1], test_rect.shape[0]), corner_size, (0, 0, 255), -1)  # BR
+            cv2.circle(test_rect, (0, test_rect.shape[0]), corner_size, (255, 255, 0), -1)  # BL
+            
+            # Apply inverse transform to show how it would look
+            if self.inverse_transform_matrix is not None:
+                transformed_preview = cv2.warpPerspective(test_rect, self.inverse_transform_matrix, (w, h))
+                small_preview = cv2.resize(transformed_preview, (w // 2, h // 2))
+                cv2.imshow("Aruco Debug: Transform Preview", small_preview)
     
     def apply_transform(self, game_surface: np.ndarray) -> Optional[np.ndarray]:
         """
