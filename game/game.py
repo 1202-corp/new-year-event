@@ -380,22 +380,19 @@ class Game:
         
         # Update wall collision detector if enabled
         if self.wall_collision_detector and self.aruco_transform and self.aruco_transform.calibrated:
-            # Read frame from snowball camera
+            # Read frame from Aruco camera (same camera used for Aruco detection)
             try:
                 import cv2
-                camera = cv2.VideoCapture(Config.SNOWBALL_CAMERA_INDEX)
-                if camera.isOpened():
-                    ret, frame = camera.read()
-                    if ret:
-                        # Get game objects positions for masking
-                        game_objects = self._get_game_objects_for_detector()
-                        
-                        # Detect collision
-                        result = self.wall_collision_detector.detect_collision(frame, game_objects)
-                        
-                        # Show debug windows (3 horizontally)
-                        self._show_collision_debug(result, frame)
-                    camera.release()
+                frame = self.aruco_transform.read_camera_frame()
+                if frame is not None:
+                    # Get game objects positions for masking
+                    game_objects = self._get_game_objects_for_detector()
+                    
+                    # Detect collision
+                    result = self.wall_collision_detector.detect_collision(frame, game_objects)
+                    
+                    # Show debug windows (3 horizontally)
+                    self._show_collision_debug(result, frame)
             except Exception as e:
                 logger.debug(f"Error in wall collision detection: {e}")
         
