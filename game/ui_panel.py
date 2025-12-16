@@ -93,16 +93,19 @@ class CameraThread(threading.Thread):
 
 
 class UIPanel:
-    """Bottom UI panel with information and camera preview"""
+    """Vertical UI panel on the right side with information and camera preview"""
     
     def __init__(self, screen_width: int, screen_height: int):
         self.screen_width = screen_width
         self.screen_height = screen_height
-        self.panel_height = int(screen_height * Config.UI_PANEL_HEIGHT_PERCENT / 100)
-        self.panel_y = screen_height - self.panel_height
+        # Panel is now vertical on the right side
+        self.panel_width = int(screen_width * Config.UI_PANEL_WIDTH_PERCENT / 100)
+        self.panel_x = screen_width - self.panel_width
+        # Keep panel_height for backward compatibility (full screen height)
+        self.panel_height = screen_height
         
-        # Camera settings - size based on panel height (square, with padding)
-        self.camera_window_size = self.panel_height - 40  # Leave 20px padding on top and bottom
+        # Camera settings - size based on panel width (square, with padding)
+        self.camera_window_size = self.panel_width - 40  # Leave 20px padding on left and right
         self.camera_thread = None
         self.current_frame_surface = None
         
@@ -141,12 +144,14 @@ class UIPanel:
         from game.safe_area import get_safe_area_margin
         margin = get_safe_area_margin(screen_width, screen_height, 0)
         
-        # Panel height and position (accounting for safe area)
-        self.panel_height = int((screen_height - margin * 2) * Config.UI_PANEL_HEIGHT_PERCENT / 100)
-        self.panel_y = screen_height - self.panel_height - margin  # Position above bottom margin
+        # Panel width and position (accounting for safe area) - vertical panel on right
+        self.panel_width = int((screen_width - margin * 2) * Config.UI_PANEL_WIDTH_PERCENT / 100)
+        self.panel_x = screen_width - self.panel_width - margin  # Position from right edge
+        # Keep panel_height for backward compatibility (full screen height)
+        self.panel_height = screen_height
         
-        # Update camera window size based on panel height (square, with padding)
-        self.camera_window_size = self.panel_height - 40  # Leave 20px padding on top and bottom
+        # Update camera window size based on panel width (square, with padding)
+        self.camera_window_size = self.panel_width - 40  # Leave 20px padding on left and right
         
         # Update fonts
         scaling = get_scaling()
@@ -194,20 +199,20 @@ class UIPanel:
             self.current_frame_surface = None
     
     def draw(self, screen: pygame.Surface, score: int, enemies_count: int, max_enemies: int) -> None:
-        """Draw the UI panel"""
+        """Draw the UI panel (vertical, on right side)"""
         # Apply safe area margin
         from game.safe_area import get_safe_area_margin
         margin = get_safe_area_margin(self.screen_width, self.screen_height, 0)
         
-        # Draw panel background (respecting safe area margins)
-        panel_rect = pygame.Rect(margin, self.panel_y, self.screen_width - margin * 2, self.panel_height)
+        # Draw panel background (vertical, on right side, respecting safe area margins)
+        panel_rect = pygame.Rect(self.panel_x, margin, self.panel_width, self.screen_height - margin * 2)
         pygame.draw.rect(screen, DARK_BLUE, panel_rect)
         pygame.draw.rect(screen, WHITE, panel_rect, 2)  # Border
         
-        # Draw camera preview (right side, bottom-aligned, respecting safe area)
-        # Position: right edge with padding, vertically centered in panel
-        camera_x = self.screen_width - self.camera_window_size - 20 - margin  # 20px padding + margin from right edge
-        camera_y = self.panel_y + (self.panel_height - self.camera_window_size) // 2  # Centered vertically
+        # Draw camera preview (centered horizontally in panel, positioned in upper part)
+        # Position: centered horizontally in panel, with padding from top
+        camera_x = self.panel_x + (self.panel_width - self.camera_window_size) // 2  # Centered horizontally
+        camera_y = margin + 20  # 20px padding from top
         
         if self.current_frame_surface:
             screen.blit(self.current_frame_surface, (camera_x, camera_y))
@@ -220,13 +225,13 @@ class UIPanel:
             text_rect = placeholder_text.get_rect(center=camera_rect.center)
             screen.blit(placeholder_text, text_rect)
         
-        # Draw information (left side) - use scaled padding
+        # Draw information (below camera) - use scaled padding
         scaling = get_scaling()
         padding = int(scaling.scale_value(20))  # Scale padding based on screen size
         line_spacing = int(scaling.scale_value(40))  # Scale line spacing
         
-        info_x = margin + padding
-        info_y = self.panel_y + padding
+        info_x = self.panel_x + padding
+        info_y = camera_y + self.camera_window_size + padding * 2  # Below camera with spacing
         
         # Score
         score_text = self.font_large.render(f"Score: {score}", True, WHITE)

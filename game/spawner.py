@@ -46,8 +46,8 @@ class CharacterSpawner:
     
     def calculate_lane_y(self, lane: int, screen_height: int, ui_panel_height: int, margin: int) -> int:
         """Calculate Y position for a specific lane"""
-        # Available height = screen height - UI panel - margins
-        available_height = screen_height - ui_panel_height - margin * 2
+        # Available height = screen height - margins (panel is now vertical, not affecting height)
+        available_height = screen_height - margin * 2
         lane_spacing = available_height / (Config.NUM_LINES + 1)
         return margin + int(lane_spacing * (lane + 1))
     

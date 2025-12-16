@@ -206,17 +206,20 @@ class Game:
         
         screen_width = self.screen.get_width()
         screen_height = self.screen.get_height()
-        ui_panel_height = self.ui_panel.panel_height
-        margin = get_safe_area_margin(screen_width, screen_height, ui_panel_height)
+        ui_panel_width = self.ui_panel.panel_width
+        margin = get_safe_area_margin(screen_width, screen_height, 0)
         
         # Create 10-15 random characters at random positions
         num_chars = random.randint(10, 15)
         self.calibration_characters = []
         
+        # Game area width (excluding vertical panel)
+        game_area_width = screen_width - ui_panel_width
+        
         for _ in range(num_chars):
-            # Random position within safe area
-            x = random.randint(margin, screen_width - margin - 60)
-            y = random.randint(margin, screen_height - ui_panel_height - margin - 60)
+            # Random position within safe area (excluding vertical panel)
+            x = random.randint(margin, game_area_width - margin - 60)
+            y = random.randint(margin, screen_height - margin - 60)
             
             # Random character type
             char_type = random.choice(list(CharacterType))
@@ -354,18 +357,18 @@ class Game:
         # Update characters (accounting for UI panel)
         screen_width = self.screen.get_width()
         screen_height = self.screen.get_height()
-        ui_panel_height = self.ui_panel.panel_height
-        # Effective game area height (excluding UI panel)
-        game_area_height = screen_height - ui_panel_height
+        ui_panel_width = self.ui_panel.panel_width
+        # Effective game area width (excluding vertical UI panel on right)
+        game_area_width = screen_width - ui_panel_width
         
         # Process camera frames every frame (not just on resize)
         self.ui_panel.process_camera_frame()
         
         for character in self.characters:
-            character.update(dt, screen_width=screen_width, screen_height=game_area_height)
+            character.update(dt, screen_width=game_area_width, screen_height=screen_height)
         
         # Cleanup off-screen characters (only flying type)
-        self.characters = self.spawner.cleanup_characters(self.characters, screen_width)
+        self.characters = self.spawner.cleanup_characters(self.characters, game_area_width)
         
         # Count existing enemies per lane (MAX_ENEMIES is per lane, not total)
         from game.enums import MovementType
@@ -389,10 +392,12 @@ class Game:
                     break
             
             if can_spawn:
+                # Game area width (excluding vertical panel)
+                game_area_width = screen_width - self.ui_panel.panel_width
                 new_character = self.spawner.spawn_character(
-                    screen_width=screen_width,
+                    screen_width=game_area_width,
                     screen_height=screen_height,
-                    ui_panel_height=ui_panel_height,
+                    ui_panel_height=0,  # Panel is now vertical, not affecting height
                     existing_patrolling=patrolling_count,
                     max_enemies=Config.MAX_ENEMIES,
                     enemies_per_lane=enemies_per_lane
@@ -518,45 +523,46 @@ class Game:
         """Draws safe area borders (for projector edge cutoff)"""
         screen_width = self.screen.get_width()
         screen_height = self.screen.get_height()
-        ui_panel_height = self.ui_panel.panel_height
+        ui_panel_width = self.ui_panel.panel_width
         from game.safe_area import get_safe_area_margin
-        margin = get_safe_area_margin(screen_width, screen_height, ui_panel_height)
+        margin = get_safe_area_margin(screen_width, screen_height, 0)
         
         # Draw safe area borders with background color (only in game area, not UI panel)
-        game_area_height = screen_height - ui_panel_height
+        game_area_width = screen_width - ui_panel_width
         # Top border
-        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, screen_width, margin))
-        # Bottom border (above UI panel)
-        pygame.draw.rect(self.screen, DARK_BLUE, (0, game_area_height - margin, screen_width, margin))
+        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, game_area_width, margin))
+        # Bottom border
+        pygame.draw.rect(self.screen, DARK_BLUE, (0, screen_height - margin, game_area_width, margin))
         # Left border
-        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, margin, game_area_height))
-        # Right border
-        pygame.draw.rect(self.screen, DARK_BLUE, (screen_width - margin, 0, margin, game_area_height))
+        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, margin, screen_height))
+        # Right border (before panel)
+        pygame.draw.rect(self.screen, DARK_BLUE, (game_area_width - margin, 0, margin, screen_height))
     
     def draw_lane_lines(self) -> None:
         """Draws visual lane lines (dark blue) to show where enemies move"""
         screen_width = self.screen.get_width()
         screen_height = self.screen.get_height()
-        ui_panel_height = self.ui_panel.panel_height
+        ui_panel_width = self.ui_panel.panel_width
         from game.safe_area import get_safe_area_margin
         from game.config import Config
         
-        margin = get_safe_area_margin(screen_width, screen_height, ui_panel_height)
-        available_height = screen_height - ui_panel_height - margin * 2
+        margin = get_safe_area_margin(screen_width, screen_height, 0)
+        available_height = screen_height - margin * 2
         lane_spacing = available_height / (Config.NUM_LINES + 1)
         
         # Dark blue color for lane lines (darker)
         lane_color = (5, 10, 25)  # Very dark blue-gray
         
-        # Draw lines for each lane
+        # Draw lines for each lane (shorter lines, ending before vertical panel)
+        game_area_width = screen_width - ui_panel_width
         for lane in range(Config.NUM_LINES):
             y = margin + int(lane_spacing * (lane + 1))
-            # Draw horizontal line across the screen
+            # Draw horizontal line from left margin to before panel
             pygame.draw.line(
                 self.screen,
                 lane_color,
                 (margin, y),
-                (screen_width - margin, y),
+                (game_area_width - margin, y),
                 8  # Line width (thicker)
             )
     

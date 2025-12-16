@@ -26,8 +26,8 @@ class Config:
     SAFE_AREA_MARGIN_PERCENT: float = float(os.getenv("SAFE_AREA_MARGIN_PERCENT", "3.9"))
     
     # UI Panel settings
-    UI_PANEL_HEIGHT_PERCENT: float = float(os.getenv("UI_PANEL_HEIGHT_PERCENT", "20"))
-    # Camera window size is now calculated dynamically from panel height
+    UI_PANEL_WIDTH_PERCENT: float = float(os.getenv("UI_PANEL_WIDTH_PERCENT", "20"))
+    # Camera window size is now calculated dynamically from panel width
     
     # Gameplay settings
     MAX_ENEMIES: int = int(os.getenv("MAX_ENEMIES", "20"))
