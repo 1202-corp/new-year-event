@@ -195,18 +195,28 @@ class Game:
             return
         
         # Update characters
-        for character in self.characters:
-            character.update(dt)
-        
-        # Cleanup off-screen characters
         screen_width = self.screen.get_width()
-        self.characters = self.spawner.cleanup_characters(self.characters, screen_width)
+        for character in self.characters:
+            character.update(dt, screen_width=screen_width)
+        
+        # Cleanup off-screen characters (accounting for safe area)
+        screen_width = self.screen.get_width()
+        from game.constants import SAFE_AREA_MARGIN
+        # Remove characters that are past the right edge (including safe area)
+        self.characters = self.spawner.cleanup_characters(
+            self.characters, 
+            screen_width - SAFE_AREA_MARGIN
+        )
         
         # Spawn new characters
         self.spawn_timer += dt
         if self.spawn_timer >= self.spawn_interval:
+            screen_width = self.screen.get_width()
             screen_height = self.screen.get_height()
-            self.characters.append(self.spawner.spawn_character(screen_height=screen_height))
+            self.characters.append(self.spawner.spawn_character(
+                screen_width=screen_width,
+                screen_height=screen_height
+            ))
             self.spawn_timer = 0.0
     
     def draw(self) -> None:
@@ -214,11 +224,14 @@ class Game:
         # Background
         self.screen.fill(DARK_BLUE)
         
+        # Draw safe area borders first (will be covered by characters if they overlap)
+        self.draw_safe_area()
+        
         # Draw characters
         for character in self.characters:
             character.draw(self.screen)
         
-        # Draw UI
+        # Draw UI (currently disabled)
         self.draw_ui()
         
         # Draw pause menu if paused
@@ -228,19 +241,26 @@ class Game:
         pygame.display.flip()
     
     def draw_ui(self) -> None:
-        """Draws game UI"""
-        # Score
-        score_text = self.font_large.render(f"Score: {self.score_manager.get_score()}", True, WHITE)
-        self.screen.blit(score_text, (20, 20))
+        """Draws game UI (currently disabled - no on-screen text)"""
+        # UI elements removed for projector setup
+        pass
+    
+    def draw_safe_area(self) -> None:
+        """Draws safe area borders (for projector edge cutoff)"""
+        from game.constants import SAFE_AREA_MARGIN
         
-        # Instructions
-        if self.state == GameState.PLAYING:
-            screen_height = self.screen.get_height()
-            instruction_text = self.font_small.render(
-                "Click on characters to kill them | ESC to pause | F11/ALT+ENTER for fullscreen",
-                True, WHITE
-            )
-            self.screen.blit(instruction_text, (20, screen_height - 40))
+        screen_width = self.screen.get_width()
+        screen_height = self.screen.get_height()
+        
+        # Draw safe area borders with background color
+        # Top border
+        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, screen_width, SAFE_AREA_MARGIN))
+        # Bottom border
+        pygame.draw.rect(self.screen, DARK_BLUE, (0, screen_height - SAFE_AREA_MARGIN, screen_width, SAFE_AREA_MARGIN))
+        # Left border
+        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, SAFE_AREA_MARGIN, screen_height))
+        # Right border
+        pygame.draw.rect(self.screen, DARK_BLUE, (screen_width - SAFE_AREA_MARGIN, 0, SAFE_AREA_MARGIN, screen_height))
     
     def run(self) -> None:
         """Main game loop"""

@@ -50,14 +50,49 @@ class Character:
         }
         return color_map.get(self.type, WHITE)
     
-    def update(self, dt: float) -> None:
-        """Updates character position"""
-        if self.is_alive:
-            self.x += self.speed * dt
+    def update(self, dt: float, screen_width: int = None) -> None:
+        """Updates character position, respecting safe area"""
+        if not self.is_alive:
+            return
+        
+        from game.constants import SAFE_AREA_MARGIN
+        
+        # Move character
+        new_x = self.x + self.speed * dt
+        
+        # Check if character would go outside safe area on the right
+        if screen_width is not None:
+            safe_right = screen_width - SAFE_AREA_MARGIN
+            # Allow character to move past safe area (they'll be cleaned up)
+            # But don't let them spawn or stay in the safe area border
+            if new_x > safe_right:
+                # Character is past safe area, will be cleaned up
+                pass
+        
+        self.x = new_x
     
     def draw(self, screen: pygame.Surface) -> None:
-        """Draws the character"""
+        """Draws the character, ensuring it doesn't draw in safe area borders"""
         if not self.is_alive:
+            return
+        
+        from game.constants import SAFE_AREA_MARGIN
+        
+        screen_width = screen.get_width()
+        screen_height = screen.get_height()
+        
+        # Check if character is completely outside safe area (shouldn't happen, but safety check)
+        safe_left = SAFE_AREA_MARGIN
+        safe_right = screen_width - SAFE_AREA_MARGIN
+        safe_top = SAFE_AREA_MARGIN
+        safe_bottom = screen_height - SAFE_AREA_MARGIN
+        
+        # Don't draw if character is in safe area borders
+        if (self.x < safe_left or 
+            self.x + self.width > safe_right or
+            self.y < safe_top or
+            self.y + self.height > safe_bottom):
+            # Character is in safe area, don't draw
             return
         
         # Simple character representation (sprites will be added later)

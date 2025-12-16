@@ -1,10 +1,10 @@
 """Character spawner module"""
 import random
-from typing import List
+from typing import List, Optional
 from game.character import Character
 from game.enums import CharacterType
 from game.config import Config
-from game.constants import CHARACTER_SPAWN_X
+from game.constants import CHARACTER_SPAWN_X, SAFE_AREA_MARGIN
 from game.scaling import get_scaling
 
 
@@ -29,15 +29,34 @@ class CharacterSpawner:
             CharacterType.RUDOLPH: 40
         }
     
-    def spawn_character(self, min_y: int = None, max_y: int = None, screen_height: int = None) -> Character:
-        """Spawns a new character at random position"""
+    def spawn_character(
+        self, 
+        min_y: Optional[int] = None, 
+        max_y: Optional[int] = None, 
+        screen_width: Optional[int] = None,
+        screen_height: Optional[int] = None
+    ) -> Character:
+        """Spawns a new character at random position, respecting safe area"""
         if screen_height is None:
             screen_height = Config.SCREEN_HEIGHT
+        if screen_width is None:
+            screen_width = Config.SCREEN_WIDTH
         
+        # Calculate safe area bounds
+        safe_top = SAFE_AREA_MARGIN
+        safe_bottom = screen_height - SAFE_AREA_MARGIN
+        safe_left = SAFE_AREA_MARGIN
+        safe_right = screen_width - SAFE_AREA_MARGIN
+        
+        # Spawn within safe area
         if min_y is None:
-            min_y = int(screen_height * 0.1)  # 10% from top
+            min_y = safe_top + 20  # Small margin from top safe area
         if max_y is None:
-            max_y = int(screen_height * 0.75)  # 75% from top (leaving space at bottom)
+            max_y = safe_bottom - 20  # Small margin from bottom safe area
+        
+        # Ensure we're within safe area
+        min_y = max(min_y, safe_top)
+        max_y = min(max_y, safe_bottom - 60)  # Account for character height
         
         char_type = random.choice(self.char_types)
         y = random.randint(min_y, max_y)
@@ -47,7 +66,10 @@ class CharacterSpawner:
         scaling = get_scaling()
         speed = base_speed * scaling.scale_x
         
-        return Character(char_type, CHARACTER_SPAWN_X, y, speed, screen_height=screen_height)
+        # Spawn from left safe area edge
+        spawn_x = safe_left + CHARACTER_SPAWN_X if CHARACTER_SPAWN_X < 0 else safe_left
+        
+        return Character(char_type, spawn_x, y, speed, screen_height=screen_height)
     
     def cleanup_characters(self, characters: List[Character], screen_width: int) -> List[Character]:
         """Removes characters that are off screen"""

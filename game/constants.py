@@ -29,3 +29,6 @@ BUTTON_WIDTH = 200
 BUTTON_HEIGHT = 50
 BUTTON_SPACING = 20
 
+# Safe area (projector edge cutoff compensation)
+SAFE_AREA_MARGIN = 10  # pixels on all sides
+
