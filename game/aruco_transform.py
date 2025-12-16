@@ -1,14 +1,32 @@
 """Aruco marker detection and perspective transformation for game display"""
-import cv2
+# Lazy import cv2 to avoid Qt initialization errors at import time
+# cv2 will be imported when actually needed
 import numpy as np
 from typing import Optional, Tuple
 from game.logger import get_logger
 
 logger = get_logger()
 
-# Aruco marker settings
-ARUCO_DICT_TYPE = cv2.aruco.DICT_4X4_50
+# Aruco marker settings (will be set after cv2 import)
+ARUCO_DICT_TYPE = None  # Will be set to cv2.aruco.DICT_4X4_50 after cv2 import
 ARUCO_MARKER_IDS = [0, 1, 2, 3]  # Expected marker IDs
+
+# Lazy cv2 import - will be imported when needed
+_cv2 = None
+
+def _get_cv2():
+    """Lazy import cv2 to avoid Qt initialization errors"""
+    global _cv2, ARUCO_DICT_TYPE
+    if _cv2 is None:
+        try:
+            import cv2
+            _cv2 = cv2
+            # Set ARUCO_DICT_TYPE after cv2 is imported
+            ARUCO_DICT_TYPE = cv2.aruco.DICT_4X4_50
+        except Exception as e:
+            logger.error(f"Failed to import cv2: {e}")
+            raise
+    return _cv2
 
 # Global storage for last known marker positions
 last_marker_positions = {0: None, 1: None, 2: None, 3: None}
@@ -23,7 +41,8 @@ class ArucoTransform:
         self.camera_height = camera_height
         self.camera = None
         
-        # Aruco detection
+        # Aruco detection (lazy import cv2)
+        cv2 = _get_cv2()
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(ARUCO_DICT_TYPE)
         self.aruco_params = cv2.aruco.DetectorParameters()
         
@@ -46,6 +65,7 @@ class ArucoTransform:
     def _init_camera(self):
         """Initialize camera for Aruco detection"""
         try:
+            cv2 = _get_cv2()
             self.camera = cv2.VideoCapture(self.camera_index)
             if self.camera.isOpened():
                 # Set camera format to MJPEG for better performance
@@ -74,6 +94,7 @@ class ArucoTransform:
         """Detect Aruco markers in the frame"""
         global last_marker_positions
         
+        cv2 = _get_cv2()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
         # Detect markers (new API for OpenCV 4.7+)
@@ -166,6 +187,7 @@ class ArucoTransform:
         ], dtype=np.float32)
         
         # Calculate perspective transform matrix
+        cv2 = _get_cv2()
         self.transform_matrix = cv2.getPerspectiveTransform(src, dst_points)
         self.inverse_transform_matrix = cv2.getPerspectiveTransform(dst_points, src)
         self.transform_valid = True
@@ -290,6 +312,7 @@ class ArucoTransform:
         self._output_height = game_screen_height
         
         # Calculate perspective transform matrix
+        cv2 = _get_cv2()
         self.transform_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
         self.inverse_transform_matrix = cv2.getPerspectiveTransform(dst_points, src_points)
         self.transform_valid = True
@@ -384,6 +407,7 @@ class ArucoTransform:
         
         # Calculate perspective transform matrix
         # This transforms the rectangular game window to match the scaled Aruco marker corners
+        cv2 = _get_cv2()
         self.transform_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
         self.inverse_transform_matrix = cv2.getPerspectiveTransform(dst_points, src_points)
         self.transform_valid = True
@@ -400,6 +424,7 @@ class ArucoTransform:
         if not self.debug_enabled:
             return
         
+        cv2 = _get_cv2()
         # Create empty frame with message
         debug_frame = np.zeros((480, 640, 3), dtype=np.uint8)
         cv2.putText(debug_frame, "No camera frame", (50, 240),
@@ -419,6 +444,7 @@ class ArucoTransform:
         if not self.debug_enabled:
             return
         
+        cv2 = _get_cv2()
         # Create debug frame (copy of original)
         debug_frame = frame.copy()
         h, w = debug_frame.shape[:2]
@@ -555,6 +581,7 @@ class ArucoTransform:
         if not self.transform_valid or self.transform_matrix is None:
             return game_surface
         
+        cv2 = _get_cv2()
         # Get output dimensions from stored values
         if not hasattr(self, '_output_width') or not hasattr(self, '_output_height'):
             # Fallback: use input size
