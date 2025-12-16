@@ -202,10 +202,14 @@ def main():
         if ids is not None:
             frame_with_markers = draw_markers(frame_with_markers, corners, ids)
         
-        # Determine corners
-        top_left, top_right, bottom_right, bottom_left = determine_corners(corners, ids)
+        # Get screen center for corner selection
+        h, w = frame.shape[:2]
+        screen_center = (w // 2, h // 2)
         
-        # Apply perspective transform if all 4 markers detected
+        # Determine corners (uses last known positions if markers are lost)
+        top_left, top_right, bottom_right, bottom_left = determine_corners(corners, ids, screen_center)
+        
+        # Apply perspective transform if we have positions (from current or last known)
         transformed_frame = None
         if all(p is not None for p in [top_left, top_right, bottom_right, bottom_left]):
             transformed_frame = apply_perspective_transform(frame, 
@@ -227,10 +231,10 @@ def main():
             cv2.putText(frame_with_markers, "BL", tuple(bottom_left.astype(int) + [-30, 10]),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
         else:
-            # Show message if not all markers detected
-            cv2.putText(frame_with_markers, "Need 4 markers (ID: 0,1,2,3)", (10, 30),
-                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-            if transformed_frame is None:
+            # Show message only if we don't have any stored positions
+            if all(p is None for p in last_marker_positions.values()):
+                cv2.putText(frame_with_markers, "Need 4 markers (ID: 0,1,2,3)", (10, 30),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                 transformed_frame = np.zeros_like(frame)
                 cv2.putText(transformed_frame, "Waiting for 4 markers...", (10, frame.shape[0] // 2),
                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
