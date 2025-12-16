@@ -172,16 +172,16 @@ class Character:
                 return
         
         # Draw shadow first (below character)
-        shadow_offset = 4  # Shadow offset in pixels
-        shadow_y = self.y + self.height + shadow_offset + self.height_offset
-        shadow_color = (0, 0, 0, 128)  # Semi-transparent black
+        # Shadow is drawn at the base of the character (on the lane line)
+        shadow_offset = 6  # Shadow height in pixels
+        shadow_y = self.y + self.height // 2  # Shadow at character center (on lane line)
+        shadow_color = (10, 10, 20)  # Dark color for shadow
         
-        # Create shadow surface with alpha
-        shadow_surface = pygame.Surface((self.width, shadow_offset), pygame.SRCALPHA)
-        shadow_rect = pygame.Rect(0, 0, self.width, shadow_offset)
-        # Draw shadow as ellipse (more realistic)
-        pygame.draw.ellipse(shadow_surface, shadow_color, shadow_rect)
-        screen.blit(shadow_surface, (self.x, shadow_y))
+        # Draw shadow as ellipse (more realistic, wider than character)
+        shadow_width = int(self.width * 1.2)  # Shadow is 20% wider
+        shadow_x = self.x - (shadow_width - self.width) // 2
+        shadow_rect = pygame.Rect(shadow_x, shadow_y, shadow_width, shadow_offset)
+        pygame.draw.ellipse(screen, shadow_color, shadow_rect)
         
         # Draw character with height offset for depth
         character_y = self.y + self.height_offset
