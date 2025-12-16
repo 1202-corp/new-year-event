@@ -38,10 +38,34 @@ class CameraThread(threading.Thread):
         try:
             self.camera = cv2.VideoCapture(self.camera_index)
             if self.camera.isOpened():
+                # Set camera format to MJPEG (compressed) instead of RAW (uncompressed)
+                # MJPEG is much faster and lighter than RAW format
+                fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+                self.camera.set(cv2.CAP_PROP_FOURCC, fourcc)
+                
+                # Set camera resolution
                 self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
                 self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
+                
+                # Set lower exposure (lower value = darker image, less motion blur)
+                self.camera.set(cv2.CAP_PROP_EXPOSURE, -6)  # Lower exposure value
+                
+                # Set lower brightness/ISO (lower value = darker image, less noise)
+                self.camera.set(cv2.CAP_PROP_BRIGHTNESS, 50)  # Lower brightness
+                
+                # Try to set ISO directly if supported
+                try:
+                    self.camera.set(cv2.CAP_PROP_ISO_SPEED, 100)  # Lower ISO (if supported)
+                except:
+                    pass  # Some cameras don't support direct ISO control
+                
                 self.camera_enabled = True
+                
+                # Verify format
+                current_fourcc = int(self.camera.get(cv2.CAP_PROP_FOURCC))
+                fourcc_str = "".join([chr((current_fourcc >> 8 * i) & 0xFF) for i in range(4)])
                 logger.info(f"Camera {self.camera_index} initialized in thread")
+                logger.info(f"Camera format: {fourcc_str} (should be MJPG for MJPEG)")
             else:
                 logger.warning(f"Could not open camera {self.camera_index}")
                 return
