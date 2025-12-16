@@ -225,6 +225,13 @@ class Game:
                 # Keep window visible even when other windows are focused
                 logger.debug("Window lost focus, but keeping it visible")
             
+            elif event.type == pygame.VIDEORESIZE:
+                # Handle window resize
+                # Note: This event is only generated if window is resizable
+                # For fullscreen mode, size changes are handled in toggle_fullscreen()
+                logger.debug(f"Window resized to {event.w} x {event.h}")
+                self._update_scaling()
+            
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     if self.state == GameState.PLAYING:
@@ -354,6 +361,8 @@ class Game:
     def run(self) -> None:
         """Main game loop"""
         last_time = pygame.time.get_ticks()
+        last_width = self.screen.get_width()
+        last_height = self.screen.get_height()
         
         while self.running:
             current_time = pygame.time.get_ticks()
@@ -361,6 +370,16 @@ class Game:
             last_time = current_time
             
             self.handle_events()
+            
+            # Check if screen size changed (for cases where VIDEORESIZE event might not fire)
+            current_width = self.screen.get_width()
+            current_height = self.screen.get_height()
+            if current_width != last_width or current_height != last_height:
+                logger.debug(f"Screen size changed from {last_width}x{last_height} to {current_width}x{current_height}")
+                self._update_scaling()
+                last_width = current_width
+                last_height = current_height
+            
             self.update(dt)
             self.draw()
             
