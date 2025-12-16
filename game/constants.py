@@ -28,7 +28,7 @@ NUM_LANES = 4  # Number of lanes for enemies
 
 # UI Panel settings
 UI_PANEL_HEIGHT_PERCENT = 20  # Percentage of screen height for bottom UI panel
-CAMERA_WINDOW_SIZE = 200  # Size of camera preview window (square)
+# Camera window size is now calculated dynamically from panel height (square, with padding)
 
 # UI settings
 BUTTON_WIDTH = 200

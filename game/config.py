@@ -27,7 +27,7 @@ class Config:
     
     # UI Panel settings
     UI_PANEL_HEIGHT_PERCENT: float = float(os.getenv("UI_PANEL_HEIGHT_PERCENT", "20"))
-    CAMERA_WINDOW_SIZE: int = int(os.getenv("CAMERA_WINDOW_SIZE", "200"))
+    # Camera window size is now calculated dynamically from panel height
     
     # Gameplay settings
     MAX_ENEMIES: int = int(os.getenv("MAX_ENEMIES", "20"))
