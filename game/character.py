@@ -182,10 +182,15 @@ class Character:
         shadow_x = self.x - (shadow_width - self.width) // 2
         shadow_y = self.y + self.height // 2 - shadow_height // 2 + shadow_offset_y
         
-        shadow_color = (10, 10, 20)  # Dark color for shadow
+        # Create semi-transparent shadow surface
+        shadow_surface = pygame.Surface((shadow_width, shadow_height), pygame.SRCALPHA)
+        shadow_color = (10, 10, 20, 150)  # Dark color with alpha (semi-transparent)
         
         # Draw shadow as rectangle (same shape as character, but larger)
-        pygame.draw.rect(screen, shadow_color, (shadow_x, shadow_y, shadow_width, shadow_height))
+        pygame.draw.rect(shadow_surface, shadow_color, (0, 0, shadow_width, shadow_height))
+        
+        # Blit shadow to screen (will be semi-transparent and can overlap enemies)
+        screen.blit(shadow_surface, (shadow_x, shadow_y))
         
         # Draw character with height offset for depth
         character_y = self.y + self.height_offset
