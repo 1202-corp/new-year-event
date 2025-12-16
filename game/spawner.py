@@ -133,8 +133,6 @@ class CharacterSpawner:
     def cleanup_characters(self, characters: List[Character], screen_width: int) -> List[Character]:
         """Removes characters that are off screen (only for flying type)"""
         # No need for margin here, just check if off screen
-        safe_right = screen_width - margin
-        
         cleaned = []
         for c in characters:
             # Only remove flying characters that are off screen
