@@ -40,6 +40,10 @@ class Character:
         self.current_speed = speed  # Current speed (can vary)
         self.speed_variation = 0.3  # Speed can vary by ±30%
         
+        # Height offset for visual depth (so shadows overlap)
+        # Each enemy on the same lane has slightly different Y offset
+        self.height_offset = random.randint(-8, 8)  # Small random offset for depth
+        
         # Scale character size
         scaling = get_scaling()
         self.width = int(scaling.scale_value(CHARACTER_WIDTH))
@@ -167,8 +171,21 @@ class Character:
                 # Character is outside vertical safe area, don't draw
                 return
         
-        # Simple character representation (sprites will be added later)
-        pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
+        # Draw shadow first (below character)
+        shadow_offset = 4  # Shadow offset in pixels
+        shadow_y = self.y + self.height + shadow_offset + self.height_offset
+        shadow_color = (0, 0, 0, 128)  # Semi-transparent black
+        
+        # Create shadow surface with alpha
+        shadow_surface = pygame.Surface((self.width, shadow_offset), pygame.SRCALPHA)
+        shadow_rect = pygame.Rect(0, 0, self.width, shadow_offset)
+        # Draw shadow as ellipse (more realistic)
+        pygame.draw.ellipse(shadow_surface, shadow_color, shadow_rect)
+        screen.blit(shadow_surface, (self.x, shadow_y))
+        
+        # Draw character with height offset for depth
+        character_y = self.y + self.height_offset
+        pygame.draw.rect(screen, self.color, (self.x, character_y, self.width, self.height))
         
         # Add text label
         scaling = get_scaling()
@@ -176,7 +193,7 @@ class Character:
         font = pygame.font.Font(None, font_size)
         label = self._get_label()
         text = font.render(label, True, BLACK)
-        text_rect = text.get_rect(center=(self.x + self.width // 2, self.y + self.height // 2))
+        text_rect = text.get_rect(center=(self.x + self.width // 2, character_y + self.height // 2))
         screen.blit(text, text_rect)
     
     def _get_label(self) -> str:

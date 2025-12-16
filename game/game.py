@@ -324,8 +324,10 @@ class Game:
         self.draw_lane_lines()
         
         # Draw characters (only in game area, above UI panel)
+        # Sort by Y position to draw shadows correctly (back to front)
         ui_panel_height = self.ui_panel.panel_height
-        for character in self.characters:
+        sorted_characters = sorted(self.characters, key=lambda c: (c.y + c.height_offset) if c.is_alive else 0)
+        for character in sorted_characters:
             character.draw(self.screen, ui_panel_height=ui_panel_height)
         
         # Draw UI panel (bottom)
