@@ -91,6 +91,12 @@ class Game:
         self.state = GameState.CALIBRATING if Config.CALIBRATION_ENABLED else GameState.PLAYING
         self.running = True
         
+        # History for camera delay compensation
+        # Store enemy positions with timestamps to account for camera delay
+        self.enemy_position_history = []  # List of (timestamp, enemy_positions_dict)
+        import time
+        self.game_start_time = time.time()
+        
         # Game components (MUST be initialized before _update_scaling)
         self.characters: List[Character] = []
         self.spawner = CharacterSpawner()
@@ -378,6 +384,19 @@ class Game:
         for character in self.characters:
             character.update(dt, screen_width=game_area_width, screen_height=screen_height)
         
+        # Store current enemy positions with timestamp for camera delay compensation
+        import time
+        current_time = time.time() - self.game_start_time
+        current_enemy_positions = {}
+        for character in self.characters:
+            if character.is_alive:
+                current_enemy_positions[id(character)] = (character.x, character.y, character.width, character.height)
+        
+        # Add to history (keep last 1 second of history)
+        self.enemy_position_history.append((current_time, current_enemy_positions))
+        # Remove old entries (older than 1 second)
+        self.enemy_position_history = [(t, pos) for t, pos in self.enemy_position_history if current_time - t < 1.0]
+        
         # Update wall collision detector if enabled
         if self.wall_collision_detector and self.aruco_transform and self.aruco_transform.calibrated:
             # Read frame from Aruco camera (same camera used for Aruco detection)
@@ -385,8 +404,8 @@ class Game:
                 import cv2
                 frame = self.aruco_transform.read_camera_frame()
                 if frame is not None:
-                    # Get game objects positions for masking
-                    game_objects = self._get_game_objects_for_detector()
+                    # Get game objects positions for masking (with camera delay compensation)
+                    game_objects = self._get_game_objects_for_detector_with_delay(current_time)
                     
                     # Detect collision
                     result = self.wall_collision_detector.detect_collision(frame, game_objects)
@@ -595,20 +614,41 @@ class Game:
                 8  # Line width (thicker)
             )
     
-    def _get_game_objects_for_detector(self) -> dict:
-        """Get game objects positions for collision detector masking"""
+    def _get_game_objects_for_detector_with_delay(self, current_time: float) -> dict:
+        """Get game objects positions for collision detector masking with camera delay compensation"""
         screen_width = self.screen.get_width()
         screen_height = self.screen.get_height()
         ui_panel_width = self.ui_panel.panel_width
         
-        # Get enemy positions
-        enemies = []
-        for character in self.characters:
-            if character.is_alive:
-                # Position in game coordinates (excluding UI panel)
-                enemies.append((character.x, character.y, character.width, character.height))
+        # Calculate target time (current time minus camera delay)
+        camera_delay_seconds = Config.CAMERA_DELAY_MS / 1000.0
+        target_time = current_time - camera_delay_seconds
         
-        # Get lane line Y positions
+        # Find enemy positions from history closest to target time
+        enemies = []
+        if self.enemy_position_history:
+            # Find closest timestamp in history
+            closest_entry = min(self.enemy_position_history, key=lambda x: abs(x[0] - target_time))
+            historical_positions = closest_entry[1]
+            
+            # Map historical positions to current characters (by object ID)
+            for character in self.characters:
+                if character.is_alive:
+                    char_id = id(character)
+                    if char_id in historical_positions:
+                        # Use historical position
+                        x, y, w, h = historical_positions[char_id]
+                        enemies.append((x, y, w, h))
+                    else:
+                        # Fallback to current position if not in history
+                        enemies.append((character.x, character.y, character.width, character.height))
+        else:
+            # No history yet, use current positions
+            for character in self.characters:
+                if character.is_alive:
+                    enemies.append((character.x, character.y, character.width, character.height))
+        
+        # Get lane line Y positions (these don't change, so no delay needed)
         from game.safe_area import get_safe_area_margin
         margin = get_safe_area_margin(screen_width, screen_height, 0)
         available_height = screen_height - margin * 2
@@ -618,7 +658,7 @@ class Game:
             y = margin + int(lane_spacing * (lane + 1))
             lines.append(y)
         
-        # Get UI panel position
+        # Get UI panel position (doesn't change, so no delay needed)
         ui_panel = (screen_width - ui_panel_width, 0, ui_panel_width, screen_height)
         
         return {

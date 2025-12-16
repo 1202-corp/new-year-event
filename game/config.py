@@ -55,6 +55,7 @@ class Config:
     # Vision settings
     VISION_ENABLED: bool = os.getenv("VISION_ENABLED", "false").lower() == "true"
     CALIBRATION_ENABLED: bool = os.getenv("CALIBRATION_ENABLED", "false").lower() == "true"
+    CAMERA_DELAY_MS: float = float(os.getenv("CAMERA_DELAY_MS", "100"))  # Camera delay in milliseconds
     
     @classmethod
     def setup_display(cls) -> None:
