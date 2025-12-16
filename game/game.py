@@ -377,8 +377,8 @@ class Game:
         available_height = screen_height - ui_panel_height - margin * 2
         lane_spacing = available_height / (Config.NUM_LANES + 1)
         
-        # Dark blue color for lane lines (slightly lighter than DARK_BLUE)
-        lane_color = (15, 25, 50)  # Dark blue-gray
+        # Dark blue color for lane lines (darker)
+        lane_color = (5, 10, 25)  # Very dark blue-gray
         
         # Draw lines for each lane
         for lane in range(Config.NUM_LANES):
@@ -389,7 +389,7 @@ class Game:
                 lane_color,
                 (margin, y),
                 (screen_width - margin, y),
-                5  # Line width (thicker)
+                8  # Line width (thicker)
             )
     
     def run(self) -> None:

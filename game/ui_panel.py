@@ -208,9 +208,13 @@ class UIPanel:
             text_rect = placeholder_text.get_rect(center=camera_rect.center)
             screen.blit(placeholder_text, text_rect)
         
-        # Draw information (left side)
-        info_x = 20
-        info_y = self.panel_y + 20
+        # Draw information (left side) - use scaled padding
+        scaling = get_scaling()
+        padding = int(scaling.scale_value(20))  # Scale padding based on screen size
+        line_spacing = int(scaling.scale_value(40))  # Scale line spacing
+        
+        info_x = margin + padding
+        info_y = self.panel_y + padding
         
         # Score
         score_text = self.font_large.render(f"Score: {score}", True, WHITE)
@@ -218,7 +222,7 @@ class UIPanel:
         
         # Enemies count
         enemies_text = self.font_medium.render(f"Enemies: {enemies_count}/{max_enemies}", True, WHITE)
-        screen.blit(enemies_text, (info_x, info_y + 40))
+        screen.blit(enemies_text, (info_x, info_y + line_spacing))
     
     def cleanup(self) -> None:
         """Cleanup camera resources"""
