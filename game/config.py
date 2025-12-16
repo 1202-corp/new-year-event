@@ -39,11 +39,20 @@ class Config:
     @classmethod
     def setup_display(cls) -> None:
         """Setup display environment variable for multi-monitor support"""
+        # Set DISPLAY environment variable BEFORE pygame.init()
+        # This is critical - must be set before any SDL/pygame initialization
         if cls.DISPLAY_NUMBER != 0:
-            # Set DISPLAY environment variable for Linux/X11
-            # Format: :0.0, :0.1, :1.0, etc.
+            # For X11, format is :display.screen
+            # DISPLAY_NUMBER=1 means :1.0 (display 1, screen 0)
             display_var = f":{cls.DISPLAY_NUMBER}.0"
             os.environ["DISPLAY"] = display_var
+            print(f"[Config] Setting DISPLAY environment variable to: {display_var}")
+        
+        # Store original DISPLAY if we're changing it
+        original_display = os.environ.get("DISPLAY", ":0.0")
+        if cls.DISPLAY_NUMBER != 0:
+            print(f"[Config] Original DISPLAY was: {original_display}")
+            print(f"[Config] New DISPLAY is: {os.environ.get('DISPLAY')}")
     
     @classmethod
     def get_display_env(cls) -> Optional[str]:

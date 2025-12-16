@@ -16,9 +16,44 @@ class Game:
     """Main game class"""
     
     def __init__(self):
+        # Initialize pygame
         pygame.init()
+        
+        # Check available displays and get info
+        display_to_use = 0
+        try:
+            num_displays = pygame.display.get_num_displays()
+            print(f"[Game] Number of displays detected: {num_displays}")
+            
+            if Config.DISPLAY_NUMBER >= num_displays:
+                print(f"[Game] WARNING: DISPLAY_NUMBER={Config.DISPLAY_NUMBER} >= available displays ({num_displays})")
+                print(f"[Game] Using display 0 instead")
+            else:
+                display_to_use = Config.DISPLAY_NUMBER
+                print(f"[Game] Using display {display_to_use}")
+            
+            # Get display info
+            if num_displays > 0:
+                try:
+                    desktop_sizes = pygame.display.get_desktop_sizes()
+                    print(f"[Game] Desktop sizes: {desktop_sizes}")
+                    if display_to_use < len(desktop_sizes):
+                        print(f"[Game] Display {display_to_use} size: {desktop_sizes[display_to_use]}")
+                except Exception as e:
+                    print(f"[Game] Could not get desktop sizes: {e}")
+        except Exception as e:
+            print(f"[Game] Could not query displays: {e}")
+        
+        # Create window
+        # Note: pygame.display.set_mode() doesn't support selecting display directly
+        # The DISPLAY environment variable should handle this for X11
         self.screen = pygame.display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
         pygame.display.set_caption("New Year Arcade Game")
+        
+        # Get window position info
+        window_info = pygame.display.get_wm_info()
+        print(f"[Game] Window info: {window_info}")
+        
         self.clock = pygame.time.Clock()
         
         # Initialize scaling
