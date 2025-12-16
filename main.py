@@ -2,6 +2,11 @@
 import os
 import sys
 
+# CRITICAL: Set Qt environment variables BEFORE any imports that might use OpenCV
+# This must be done before importing cv2 (which happens in game modules)
+os.environ["QT_QPA_PLATFORM"] = "xcb"
+os.environ.pop("QT_PLUGIN_PATH", None)
+
 # CRITICAL: Load .env and set DISPLAY BEFORE importing pygame
 # This must be done before any pygame imports
 from dotenv import load_dotenv
@@ -18,13 +23,6 @@ if display_number != 0:
     os.environ["DISPLAY"] = display_var
     logger.info(f"Setting DISPLAY to: {display_var}")
     logger.info(f"Current DISPLAY: {os.environ.get('DISPLAY')}")
-
-# Set Qt platform plugin to xcb for OpenCV windows
-# This must be set before importing cv2
-# Try to use xcb backend, but if it fails, OpenCV will fall back or we'll catch the error
-os.environ["QT_QPA_PLATFORM"] = "xcb"
-# Disable Qt platform plugin path issues
-os.environ.pop("QT_PLUGIN_PATH", None)
 
 # Now we can import game modules (which import pygame)
 from game.config import Config
