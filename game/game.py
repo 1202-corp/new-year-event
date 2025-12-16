@@ -87,8 +87,9 @@ class Game:
         self.clock = pygame.time.Clock()
         
         # Game state
-        self.state = GameState.PLAYING
+        self.state = GameState.CALIBRATING if Config.CALIBRATION_ENABLED else GameState.PLAYING
         self.running = True
+        self.calibration_step = 0  # 0 = waiting for markers, 1 = showing preview, 2 = playing
         
         # Game components (MUST be initialized before _update_scaling)
         self.characters: List[Character] = []
@@ -141,6 +142,11 @@ class Game:
             except Exception as e:
                 logger.warning(f"Failed to initialize Aruco transform: {e}")
                 self.aruco_transform = None
+        
+        # Create calibration test characters (random positions for calibration screen)
+        self.calibration_characters = []
+        if self.state == GameState.CALIBRATING:
+            self._create_calibration_characters()
     
     def _update_scaling(self) -> None:
         """Updates scaling based on current screen size and updates all existing objects"""
@@ -335,6 +341,66 @@ class Game:
         # Background
         self.screen.fill(DARK_BLUE)
         
+        # Draw calibration screen or game
+        if self.state == GameState.CALIBRATING:
+            self._draw_calibration_screen()
+        elif self.state == GameState.CALIBRATION_PREVIEW:
+            self._draw_calibration_preview()
+        else:
+            self._draw_game()
+        
+        # Apply Aruco perspective transform if enabled and calibrated
+        if self.aruco_transform is not None and (self.state == GameState.CALIBRATION_PREVIEW or 
+                                                  (self.state == GameState.PLAYING and self.aruco_transform.calibrated)):
+            self._apply_aruco_transform()
+        else:
+            pygame.display.flip()
+    
+    def _draw_calibration_screen(self) -> None:
+        """Draw calibration screen with frozen characters"""
+        # Draw safe area borders
+        self.draw_safe_area()
+        
+        # Draw lane lines
+        self.draw_lane_lines()
+        
+        # Draw calibration characters (frozen)
+        ui_panel_height = self.ui_panel.panel_height
+        sorted_characters = sorted(self.calibration_characters, key=lambda c: (c.y + c.height_offset))
+        for character in sorted_characters:
+            character.draw(self.screen, ui_panel_height=ui_panel_height)
+        
+        # Draw UI panel
+        self.ui_panel.draw(self.screen, 0, len(self.calibration_characters), len(self.calibration_characters))
+        
+        # Draw calibration instruction
+        from game.scaling import get_scaling
+        scaling = get_scaling()
+        font = pygame.font.Font(None, scaling.scale_font_size(48))
+        text = font.render("Place Aruco markers in projector corners", True, WHITE)
+        text2 = font.render("Press SPACE when ready", True, WHITE)
+        text_rect = text.get_rect(center=(self.screen.get_width() // 2, self.screen.get_height() // 2 - 50))
+        text2_rect = text2.get_rect(center=(self.screen.get_width() // 2, self.screen.get_height() // 2 + 10))
+        self.screen.blit(text, text_rect)
+        self.screen.blit(text2, text2_rect)
+    
+    def _draw_calibration_preview(self) -> None:
+        """Draw calibration preview (same as calibration screen but will be transformed)"""
+        self._draw_calibration_screen()
+        
+        # Draw preview instruction
+        from game.scaling import get_scaling
+        scaling = get_scaling()
+        font = pygame.font.Font(None, scaling.scale_font_size(48))
+        text = font.render("Preview: Corrected image", True, WHITE)
+        text2 = font.render("Press SPACE to start game", True, WHITE)
+        text_rect = text.get_rect(center=(self.screen.get_width() // 2, self.screen.get_height() // 2 - 50))
+        text2_rect = text2.get_rect(center=(self.screen.get_width() // 2, self.screen.get_height() // 2 + 10))
+        self.screen.blit(text, text_rect)
+        self.screen.blit(text2, text2_rect)
+    
+    def _draw_game(self) -> None:
+        """Draw normal game screen"""
         # Draw safe area borders first (will be covered by characters if they overlap)
         self.draw_safe_area()
         
@@ -360,12 +426,6 @@ class Game:
         # Draw pause menu if paused
         if self.state == GameState.PAUSED:
             self.pause_menu.draw(self.screen)
-        
-        # Apply Aruco perspective transform if enabled
-        if self.aruco_transform is not None:
-            self._apply_aruco_transform()
-        else:
-            pygame.display.flip()
     
     def draw_ui(self) -> None:
         """Draws game UI (currently disabled - no on-screen text)"""

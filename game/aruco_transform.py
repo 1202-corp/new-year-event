@@ -91,43 +91,43 @@ class ArucoTransform:
         return corners, ids
     
     def determine_corners(self, corners, ids, screen_center):
-        """Determine which marker belongs to which corner (using marker centers)"""
+        """Determine which marker belongs to which corner (using corners closest to screen center)"""
         global last_marker_positions
         
-        # Get center points of each marker (not corners!)
-        marker_centers = {}
+        # Get corner points (closest to screen center = inner corner) of each marker
+        marker_corners = {}
         if ids is not None:
             for i, marker_id in enumerate(ids.flatten()):
                 if marker_id in ARUCO_MARKER_IDS:
-                    # Get center of marker (average of all 4 corners)
+                    # Get corner closest to screen center (inner corner)
                     corner_points = corners[i][0]
-                    center = np.mean(corner_points, axis=0)
-                    marker_centers[marker_id] = center
+                    closest_corner = self.get_closest_corner_to_center(corner_points, screen_center)
+                    marker_corners[marker_id] = closest_corner
                     # Update last known position
-                    last_marker_positions[marker_id] = center
+                    last_marker_positions[marker_id] = closest_corner
         
         # Use last known positions for missing markers
         for marker_id in ARUCO_MARKER_IDS:
-            if marker_id not in marker_centers and last_marker_positions[marker_id] is not None:
-                marker_centers[marker_id] = last_marker_positions[marker_id]
+            if marker_id not in marker_corners and last_marker_positions[marker_id] is not None:
+                marker_corners[marker_id] = last_marker_positions[marker_id]
         
-        if len(marker_centers) != 4:
+        if len(marker_corners) != 4:
             return None, None, None, None
         
         # Determine corners based on position
-        centers_list = [(id, center) for id, center in marker_centers.items()]
+        corners_list = [(id, corner) for id, corner in marker_corners.items()]
         
         # Find top-left (minimum x + y)
-        top_left_marker = min(centers_list, key=lambda x: x[1][0] + x[1][1])
+        top_left_marker = min(corners_list, key=lambda x: x[1][0] + x[1][1])
         
         # Find top-right (maximum x, minimum y)
-        top_right_marker = max(centers_list, key=lambda x: x[1][0] - x[1][1])
+        top_right_marker = max(corners_list, key=lambda x: x[1][0] - x[1][1])
         
         # Find bottom-right (maximum x + y)
-        bottom_right_marker = max(centers_list, key=lambda x: x[1][0] + x[1][1])
+        bottom_right_marker = max(corners_list, key=lambda x: x[1][0] + x[1][1])
         
         # Find bottom-left (minimum x, maximum y)
-        bottom_left_marker = min(centers_list, key=lambda x: x[1][0] - x[1][1])
+        bottom_left_marker = min(corners_list, key=lambda x: x[1][0] - x[1][1])
         
         return (top_left_marker[1], top_right_marker[1], 
                 bottom_right_marker[1], bottom_left_marker[1])
@@ -187,14 +187,130 @@ class ArucoTransform:
         
         return frame
     
+    def calibrate(self, game_screen_width: int, game_screen_height: int) -> bool:
+        """
+        Perform calibration: detect and store marker positions
+        
+        Args:
+            game_screen_width: Width of the game screen
+            game_screen_height: Height of the game screen
+        
+        Returns:
+            True if calibration successful, False otherwise
+        """
+        frame = self.read_camera_frame()
+        if frame is None:
+            return False
+        
+        h, w = frame.shape[:2]
+        screen_center = (w // 2, h // 2)
+        
+        # Detect markers
+        corners, ids = self.detect_aruco_markers(frame)
+        
+        # Determine corners
+        top_left, top_right, bottom_right, bottom_left = self.determine_corners(corners, ids, screen_center)
+        
+        if any(p is None for p in [top_left, top_right, bottom_right, bottom_left]):
+            return False
+        
+        # Store calibration positions
+        self.calibration_marker_positions = {
+            'top_left': top_left.copy(),
+            'top_right': top_right.copy(),
+            'bottom_right': bottom_right.copy(),
+            'bottom_left': bottom_left.copy(),
+            'game_screen_width': game_screen_width,
+            'game_screen_height': game_screen_height
+        }
+        
+        # Calculate and store transform
+        self._calculate_transform_from_positions()
+        self.calibrated = True
+        
+        return True
+    
+    def _calculate_transform_from_positions(self):
+        """Calculate transform matrix from stored calibration positions"""
+        if self.calibration_marker_positions is None:
+            return
+        
+        game_screen_width = self.calibration_marker_positions['game_screen_width']
+        game_screen_height = self.calibration_marker_positions['game_screen_height']
+        
+        top_left = self.calibration_marker_positions['top_left']
+        top_right = self.calibration_marker_positions['top_right']
+        bottom_right = self.calibration_marker_positions['bottom_right']
+        bottom_left = self.calibration_marker_positions['bottom_left']
+        
+        # Source points (game screen rectangle - what we have)
+        src_points = np.array([
+            [0, 0],                           # Top-left
+            [game_screen_width, 0],           # Top-right
+            [game_screen_width, game_screen_height],  # Bottom-right
+            [0, game_screen_height]           # Bottom-left
+        ], dtype=np.float32)
+        
+        # Destination points (Aruco marker corners from camera)
+        dst_points_camera = np.array([
+            top_left,         # Top-left marker corner
+            top_right,        # Top-right marker corner
+            bottom_right,     # Bottom-right marker corner
+            bottom_left       # Bottom-left marker corner
+        ], dtype=np.float32)
+        
+        # Scale marker positions from camera coordinates to game screen size
+        x_coords = dst_points_camera[:, 0]
+        y_coords = dst_points_camera[:, 1]
+        min_x = float(np.min(x_coords))
+        max_x = float(np.max(x_coords))
+        min_y = float(np.min(y_coords))
+        max_y = float(np.max(y_coords))
+        
+        bbox_width = max_x - min_x
+        bbox_height = max_y - min_y
+        
+        # Normalize marker positions to [0, 1] range based on bounding box
+        if bbox_width > 0 and bbox_height > 0:
+            dst_points_normalized = dst_points_camera.copy()
+            dst_points_normalized[:, 0] = (dst_points_normalized[:, 0] - min_x) / bbox_width
+            dst_points_normalized[:, 1] = (dst_points_normalized[:, 1] - min_y) / bbox_height
+        else:
+            dst_points_normalized = dst_points_camera.copy()
+        
+        # Scale normalized positions to game screen dimensions
+        dst_points = dst_points_normalized.copy()
+        dst_points[:, 0] *= game_screen_width
+        dst_points[:, 1] *= game_screen_height
+        
+        # Store output dimensions
+        self._output_width = game_screen_width
+        self._output_height = game_screen_height
+        
+        # Calculate perspective transform matrix
+        self.transform_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+        self.inverse_transform_matrix = cv2.getPerspectiveTransform(dst_points, src_points)
+        self.transform_valid = True
+    
     def update(self, game_screen_width: int, game_screen_height: int):
         """
-        Update transform based on current camera frame
+        Update transform based on current camera frame (only if not calibrated)
         
         Args:
             game_screen_width: Width of the game screen
             game_screen_height: Height of the game screen
         """
+        # If already calibrated, use stored positions
+        if self.calibrated and self.calibration_marker_positions is not None:
+            # Recalculate transform if screen size changed
+            if (self.calibration_marker_positions['game_screen_width'] != game_screen_width or
+                self.calibration_marker_positions['game_screen_height'] != game_screen_height):
+                self.calibration_marker_positions['game_screen_width'] = game_screen_width
+                self.calibration_marker_positions['game_screen_height'] = game_screen_height
+                self._calculate_transform_from_positions()
+            return self.transform_valid
+        
+        # Not calibrated yet - detect markers in real-time
         frame = self.read_camera_frame()
         if frame is None:
             self.transform_valid = False
