@@ -406,7 +406,7 @@ class ArucoTransform:
         debug_frame = np.zeros((480, 640, 3), dtype=np.uint8)
         cv2.putText(debug_frame, "No camera frame", (50, 240),
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        cv2.imshow("Aruco Debug: Camera View", debug_frame)
+        cv2.imshow("Aruco Debug", debug_frame)
         # Process OpenCV window events
         cv2.waitKey(1)
     
@@ -488,12 +488,8 @@ class ArucoTransform:
         
         # Resize for display (half size)
         small_frame = cv2.resize(debug_frame, (w // 2, h // 2))
-        cv2.imshow("Aruco Debug: Camera View", small_frame)
         
-        # Process OpenCV window events (required for window updates)
-        cv2.waitKey(1)
-        
-        # Show transformed preview if transform is valid
+        # Create combined debug window with camera view and transform preview
         if self.transform_valid:
             # Create a test rectangle to show transformation
             test_rect = np.zeros((game_height or h, game_width or w, 3), dtype=np.uint8)
@@ -515,9 +511,34 @@ class ArucoTransform:
             if self.inverse_transform_matrix is not None:
                 transformed_preview = cv2.warpPerspective(test_rect, self.inverse_transform_matrix, (w, h))
                 small_preview = cv2.resize(transformed_preview, (w // 2, h // 2))
-                cv2.imshow("Aruco Debug: Transform Preview", small_preview)
-                # Process OpenCV window events
-                cv2.waitKey(1)
+                
+                # Combine both views vertically
+                combined_height = small_frame.shape[0] + small_preview.shape[0]
+                combined_width = max(small_frame.shape[1], small_preview.shape[1])
+                combined = np.zeros((combined_height, combined_width, 3), dtype=np.uint8)
+                
+                # Place camera view on top
+                combined[0:small_frame.shape[0], 0:small_frame.shape[1]] = small_frame
+                
+                # Place transform preview on bottom
+                combined[small_frame.shape[0]:, 0:small_preview.shape[1]] = small_preview
+                
+                # Add labels
+                cv2.putText(combined, "Camera View", (10, 25),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                cv2.putText(combined, "Transform Preview", (10, small_frame.shape[0] + 25),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                
+                cv2.imshow("Aruco Debug", combined)
+            else:
+                # Only camera view if no transform matrix
+                cv2.imshow("Aruco Debug", small_frame)
+        else:
+            # Only camera view if transform not valid
+            cv2.imshow("Aruco Debug", small_frame)
+        
+        # Process OpenCV window events (required for window updates)
+        cv2.waitKey(1)
     
     def apply_transform(self, game_surface: np.ndarray) -> Optional[np.ndarray]:
         """
@@ -565,10 +586,9 @@ class ArucoTransform:
     def close_debug_windows(self):
         """Close debug windows after calibration"""
         try:
-            cv2.destroyWindow("Aruco Debug: Camera View")
-            cv2.destroyWindow("Aruco Debug: Transform Preview")
+            cv2.destroyWindow("Aruco Debug")
         except:
-            pass  # Windows may not exist, ignore errors
+            pass  # Window may not exist, ignore errors
     
     def release(self):
         """Release camera resources"""
