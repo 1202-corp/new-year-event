@@ -84,8 +84,12 @@ class Game:
         init_scaling(Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT)
         self._update_scaling()
         
-        # Fullscreen state
-        self.fullscreen = False
+        # Fullscreen state (from config)
+        self.fullscreen = Config.FULLSCREEN
+        if self.fullscreen:
+            # Switch to fullscreen immediately
+            self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+            self._update_scaling()
         
         # Game state
         self.state = GameState.PLAYING
@@ -111,10 +115,34 @@ class Game:
         )
     
     def _update_scaling(self) -> None:
-        """Updates scaling based on current screen size"""
+        """Updates scaling based on current screen size and updates all existing objects"""
+        old_width = get_scaling().current_width if get_scaling().current_width > 0 else self.screen.get_width()
+        old_height = get_scaling().current_height if get_scaling().current_height > 0 else self.screen.get_height()
+        
+        new_width = self.screen.get_width()
+        new_height = self.screen.get_height()
+        
+        # Update scaling
         scaling = get_scaling()
-        scaling.update(self.screen.get_width(), self.screen.get_height())
+        scaling.update(new_width, new_height)
         self._update_fonts()
+        
+        # Update all existing characters to match new scale
+        if old_width > 0 and old_height > 0:
+            scale_x_ratio = new_width / old_width
+            scale_y_ratio = new_height / old_height
+            
+            for character in self.characters:
+                if character.is_alive:
+                    # Update character size
+                    character.update_scaling()
+                    
+                    # Update character position (scale relative to new screen size)
+                    character.x = character.x * scale_x_ratio
+                    character.y = character.y * scale_y_ratio
+                    
+                    # Update character speed (scale with width)
+                    character.speed = character.speed * scale_x_ratio
     
     def _update_fonts(self) -> None:
         """Updates font sizes based on current scaling"""
@@ -144,6 +172,7 @@ class Game:
             self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         else:
             self.screen = pygame.display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
+        # Update scaling and all existing objects
         self._update_scaling()
     
     def handle_click(self, pos: Tuple[int, int]) -> None:
@@ -201,11 +230,10 @@ class Game:
         
         # Cleanup off-screen characters (accounting for safe area)
         screen_width = self.screen.get_width()
-        from game.constants import SAFE_AREA_MARGIN
         # Remove characters that are past the right edge (including safe area)
         self.characters = self.spawner.cleanup_characters(
             self.characters, 
-            screen_width - SAFE_AREA_MARGIN
+            screen_width - Config.SAFE_AREA_MARGIN
         )
         
         # Spawn new characters
@@ -247,20 +275,19 @@ class Game:
     
     def draw_safe_area(self) -> None:
         """Draws safe area borders (for projector edge cutoff)"""
-        from game.constants import SAFE_AREA_MARGIN
-        
         screen_width = self.screen.get_width()
         screen_height = self.screen.get_height()
+        margin = Config.SAFE_AREA_MARGIN
         
         # Draw safe area borders with background color
         # Top border
-        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, screen_width, SAFE_AREA_MARGIN))
+        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, screen_width, margin))
         # Bottom border
-        pygame.draw.rect(self.screen, DARK_BLUE, (0, screen_height - SAFE_AREA_MARGIN, screen_width, SAFE_AREA_MARGIN))
+        pygame.draw.rect(self.screen, DARK_BLUE, (0, screen_height - margin, screen_width, margin))
         # Left border
-        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, SAFE_AREA_MARGIN, screen_height))
+        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, margin, screen_height))
         # Right border
-        pygame.draw.rect(self.screen, DARK_BLUE, (screen_width - SAFE_AREA_MARGIN, 0, SAFE_AREA_MARGIN, screen_height))
+        pygame.draw.rect(self.screen, DARK_BLUE, (screen_width - margin, 0, margin, screen_height))
     
     def run(self) -> None:
         """Main game loop"""

@@ -28,6 +28,11 @@ class Character:
         self.points = self._get_points()
         self.color = self._get_color()
         
+        # Store base values for scaling
+        self.base_width = CHARACTER_WIDTH
+        self.base_height = CHARACTER_HEIGHT
+        self.base_speed = speed
+        
     def _get_points(self) -> int:
         """Returns points for killing this character"""
         points_map = {
@@ -55,14 +60,14 @@ class Character:
         if not self.is_alive:
             return
         
-        from game.constants import SAFE_AREA_MARGIN
+        from game.config import Config
         
         # Move character
         new_x = self.x + self.speed * dt
         
         # Check if character would go outside safe area on the right
         if screen_width is not None:
-            safe_right = screen_width - SAFE_AREA_MARGIN
+            safe_right = screen_width - Config.SAFE_AREA_MARGIN
             # Allow character to move past safe area (they'll be cleaned up)
             # But don't let them spawn or stay in the safe area border
             if new_x > safe_right:
@@ -71,21 +76,30 @@ class Character:
         
         self.x = new_x
     
+    def update_scaling(self) -> None:
+        """Updates character size and speed based on current scaling"""
+        scaling = get_scaling()
+        self.width = int(scaling.scale_value(self.base_width))
+        self.height = int(scaling.scale_value(self.base_height))
+        # Speed should scale with screen width
+        self.speed = self.base_speed * scaling.scale_x
+    
     def draw(self, screen: pygame.Surface) -> None:
         """Draws the character, ensuring it doesn't draw in safe area borders"""
         if not self.is_alive:
             return
         
-        from game.constants import SAFE_AREA_MARGIN
+        from game.config import Config
         
         screen_width = screen.get_width()
         screen_height = screen.get_height()
+        margin = Config.SAFE_AREA_MARGIN
         
         # Check if character is completely outside safe area (shouldn't happen, but safety check)
-        safe_left = SAFE_AREA_MARGIN
-        safe_right = screen_width - SAFE_AREA_MARGIN
-        safe_top = SAFE_AREA_MARGIN
-        safe_bottom = screen_height - SAFE_AREA_MARGIN
+        safe_left = margin
+        safe_right = screen_width - margin
+        safe_top = margin
+        safe_bottom = screen_height - margin
         
         # Don't draw if character is in safe area borders
         if (self.x < safe_left or 

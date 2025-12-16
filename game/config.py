@@ -20,6 +20,10 @@ class Config:
     SCREEN_WIDTH: int = int(os.getenv("SCREEN_WIDTH", "1280"))
     SCREEN_HEIGHT: int = int(os.getenv("SCREEN_HEIGHT", "720"))
     FPS: int = int(os.getenv("FPS", "60"))
+    FULLSCREEN: bool = os.getenv("FULLSCREEN", "false").lower() == "true"
+    
+    # Safe area settings
+    SAFE_AREA_MARGIN: int = int(os.getenv("SAFE_AREA_MARGIN", "10"))
     
     # Camera settings
     CAMERA_INDEX: int = int(os.getenv("CAMERA_INDEX", "0"))

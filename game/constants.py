@@ -30,5 +30,11 @@ BUTTON_HEIGHT = 50
 BUTTON_SPACING = 20
 
 # Safe area (projector edge cutoff compensation)
-SAFE_AREA_MARGIN = 10  # pixels on all sides
+# This is now loaded from .env via Config.SAFE_AREA_MARGIN
+# Keeping this for backward compatibility, but prefer Config.SAFE_AREA_MARGIN
+try:
+    from game.config import Config
+    SAFE_AREA_MARGIN = Config.SAFE_AREA_MARGIN
+except ImportError:
+    SAFE_AREA_MARGIN = 10  # fallback
 
