@@ -549,7 +549,7 @@ class Game:
         lane_color = (5, 10, 25)  # Very dark blue-gray
         
         # Draw lines for each lane
-        for lane in range(Config.NUM_LANES):
+        for lane in range(Config.NUM_LINES):
             y = margin + int(lane_spacing * (lane + 1))
             # Draw horizontal line across the screen
             pygame.draw.line(
