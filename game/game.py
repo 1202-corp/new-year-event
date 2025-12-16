@@ -598,6 +598,111 @@ class Game:
                 8  # Line width (thicker)
             )
     
+    def _get_game_objects_for_detector(self) -> dict:
+        """Get game objects positions for collision detector masking"""
+        screen_width = self.screen.get_width()
+        screen_height = self.screen.get_height()
+        ui_panel_width = self.ui_panel.panel_width
+        
+        # Get enemy positions
+        enemies = []
+        for character in self.characters:
+            if character.is_alive:
+                # Position in game coordinates (excluding UI panel)
+                enemies.append((character.x, character.y, character.width, character.height))
+        
+        # Get lane line Y positions
+        from game.safe_area import get_safe_area_margin
+        margin = get_safe_area_margin(screen_width, screen_height, 0)
+        available_height = screen_height - margin * 2
+        lane_spacing = available_height / (Config.NUM_LINES + 1)
+        lines = []
+        for lane in range(Config.NUM_LINES):
+            y = margin + int(lane_spacing * (lane + 1))
+            lines.append(y)
+        
+        # Get UI panel position
+        ui_panel = (screen_width - ui_panel_width, 0, ui_panel_width, screen_height)
+        
+        return {
+            'enemies': enemies,
+            'lines': lines,
+            'ui_panel': ui_panel
+        }
+    
+    def _show_collision_debug(self, result: dict, original_frame) -> None:
+        """Show 3 debug windows horizontally: original camera, transformed, motion mask"""
+        try:
+            import cv2
+            import numpy as np
+            
+            if 'transformed_frame' not in result or 'motion_mask' not in result:
+                return
+            
+            original_camera = original_frame.copy()
+            transformed_frame = result['transformed_frame'].copy()
+            motion_mask = result['motion_mask']
+            
+            # Convert motion mask to color
+            motion_colored = cv2.applyColorMap(motion_mask, cv2.COLORMAP_JET)
+            
+            # Draw ball position on transformed frame
+            if result['ball_detected'] and result['ball_position']:
+                x, y = result['ball_position']
+                cv2.circle(transformed_frame, (x, y), 20, (0, 255, 255), 3)
+                cv2.putText(transformed_frame, "BALL", (x + 25, y),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+            
+            # Draw game objects mask overlay on transformed frame (green)
+            if 'game_objects_mask' in result:
+                mask_colored_overlay = np.zeros_like(transformed_frame)
+                mask_colored_overlay[result['game_objects_mask'] > 0] = [0, 255, 0]
+                transformed_frame = cv2.addWeighted(transformed_frame, 0.8, mask_colored_overlay, 0.2, 0)
+            
+            # Resize all to same height (use transformed frame height as reference)
+            target_h = transformed_frame.shape[0]
+            
+            # Resize original camera
+            original_h, original_w = original_camera.shape[:2]
+            original_ratio = original_w / original_h
+            new_original_w = int(target_h * original_ratio)
+            original_camera_resized = cv2.resize(original_camera, (new_original_w, target_h))
+            
+            # Resize motion mask
+            motion_h, motion_w = motion_mask.shape[:2]
+            motion_ratio = motion_w / motion_h
+            new_motion_w = int(target_h * motion_ratio)
+            motion_colored_resized = cv2.resize(motion_colored, (new_motion_w, target_h))
+            
+            # Add labels
+            cv2.putText(original_camera_resized, "Original Camera", (10, 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            cv2.putText(transformed_frame, "Transformed (Aruco)", (10, 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            cv2.putText(motion_colored_resized, "Motion Mask", (10, 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            # Combine horizontally: original camera, transformed camera, motion mask
+            total_width = new_original_w + transformed_frame.shape[1] + new_motion_w
+            combined = np.zeros((target_h, total_width, 3), dtype=np.uint8)
+            
+            x_offset = 0
+            combined[:, x_offset:x_offset + new_original_w] = original_camera_resized
+            x_offset += new_original_w
+            combined[:, x_offset:x_offset + transformed_frame.shape[1]] = transformed_frame
+            x_offset += transformed_frame.shape[1]
+            combined[:, x_offset:x_offset + new_motion_w] = motion_colored_resized
+            
+            # Resize for display
+            h, w = combined.shape[:2]
+            small_combined = cv2.resize(combined, (w // 2, h // 2))
+            cv2.imshow("Motion Detection: Original | Transformed | Motion Mask", small_combined)
+            cv2.waitKey(1)
+        except Exception as e:
+            logger.debug(f"Error showing collision debug: {e}")
+    
     def run(self) -> None:
         """Main game loop"""
         last_time = pygame.time.get_ticks()
