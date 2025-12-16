@@ -628,7 +628,7 @@ class Game:
         }
     
     def _show_collision_debug(self, result: dict, original_frame) -> None:
-        """Show 3 separate debug windows: original camera, transformed, motion mask"""
+        """Show 3 debug windows horizontally: original camera, transformed, motion mask"""
         try:
             import cv2
             import numpy as np
@@ -656,15 +656,13 @@ class Game:
                 mask_colored_overlay[result['game_objects_mask'] > 0] = [0, 255, 0]
                 transformed_frame = cv2.addWeighted(transformed_frame, 0.8, mask_colored_overlay, 0.2, 0)
             
-            # Resize all for display (half size)
-            h1, w1 = original_camera.shape[:2]
-            original_resized = cv2.resize(original_camera, (w1 // 2, h1 // 2))
+            # Resize all to 1280x720
+            target_width = 1280
+            target_height = 720
             
-            h2, w2 = transformed_frame.shape[:2]
-            transformed_resized = cv2.resize(transformed_frame, (w2 // 2, h2 // 2))
-            
-            h3, w3 = motion_colored.shape[:2]
-            motion_resized = cv2.resize(motion_colored, (w3 // 2, h3 // 2))
+            original_resized = cv2.resize(original_camera, (target_width, target_height))
+            transformed_resized = cv2.resize(transformed_frame, (target_width, target_height))
+            motion_resized = cv2.resize(motion_colored, (target_width, target_height))
             
             # Add labels
             cv2.putText(original_resized, "Original Camera", (10, 30),
@@ -676,10 +674,24 @@ class Game:
             cv2.putText(motion_resized, "Motion Mask", (10, 30),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             
-            # Show 3 separate windows
-            cv2.imshow("1. Original Camera", original_resized)
-            cv2.imshow("2. Transformed Camera (Aruco)", transformed_resized)
-            cv2.imshow("3. Motion Mask", motion_resized)
+            # Combine horizontally: original camera, transformed camera, motion mask
+            total_width = target_width * 3
+            combined = np.zeros((target_height, total_width, 3), dtype=np.uint8)
+            
+            x_offset = 0
+            combined[:, x_offset:x_offset + target_width] = original_resized
+            x_offset += target_width
+            combined[:, x_offset:x_offset + target_width] = transformed_resized
+            x_offset += target_width
+            combined[:, x_offset:x_offset + target_width] = motion_resized
+            
+            # Resize final combined image by 1.5x (divide by 1.5)
+            final_width = int(total_width / 1.5)
+            final_height = int(target_height / 1.5)
+            final_combined = cv2.resize(combined, (final_width, final_height))
+            
+            # Show combined window
+            cv2.imshow("Motion Detection: Original | Transformed | Motion Mask", final_combined)
             cv2.waitKey(1)
         except Exception as e:
             logger.debug(f"Error showing collision debug: {e}")
