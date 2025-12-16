@@ -32,6 +32,8 @@ class Config:
     # Gameplay settings
     MAX_ENEMIES: int = int(os.getenv("MAX_ENEMIES", "20"))
     NUM_LANES: int = int(os.getenv("NUM_LANES", "4"))
+    ENEMY_WIDTH: int = int(os.getenv("ENEMY_WIDTH", "60"))
+    ENEMY_HEIGHT: int = int(os.getenv("ENEMY_HEIGHT", "60"))
     
     # Camera settings for snowball detection
     SNOWBALL_CAMERA_INDEX: int = int(os.getenv("SNOWBALL_CAMERA_INDEX", "0"))
@@ -49,8 +51,6 @@ class Config:
     
     # Game settings
     CHARACTER_SPAWN_INTERVAL: float = float(os.getenv("CHARACTER_SPAWN_INTERVAL", "2.0"))
-    SNOWBALL_MIN_AREA: int = int(os.getenv("SNOWBALL_MIN_AREA", "50"))
-    SNOWBALL_MAX_AREA: int = int(os.getenv("SNOWBALL_MAX_AREA", "5000"))
     
     # Vision settings
     VISION_ENABLED: bool = os.getenv("VISION_ENABLED", "false").lower() == "true"

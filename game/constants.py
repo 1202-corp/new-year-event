@@ -19,12 +19,23 @@ GRAY = (128, 128, 128)
 LIGHT_GRAY = (200, 200, 200)
 
 # Character settings
-CHARACTER_WIDTH = 60
-CHARACTER_HEIGHT = 60
+# These are now loaded from Config, but kept here for backward compatibility
+# Import Config to get actual values
+try:
+    from game.config import Config
+    CHARACTER_WIDTH = Config.ENEMY_WIDTH
+    CHARACTER_HEIGHT = Config.ENEMY_HEIGHT
+    MAX_ENEMIES = Config.MAX_ENEMIES
+    NUM_LANES = Config.NUM_LANES
+except ImportError:
+    # Fallback values if Config not available
+    CHARACTER_WIDTH = 60
+    CHARACTER_HEIGHT = 60
+    MAX_ENEMIES = 20
+    NUM_LANES = 4
+
 CHARACTER_SPAWN_INTERVAL = 2.0  # seconds
 CHARACTER_SPAWN_X = -60
-MAX_ENEMIES = 20  # Maximum number of enemies on screen
-NUM_LANES = 4  # Number of lanes for enemies
 
 # UI Panel settings
 UI_PANEL_HEIGHT_PERCENT = 20  # Percentage of screen height for bottom UI panel
