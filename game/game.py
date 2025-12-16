@@ -264,23 +264,38 @@ class Game:
         # Cleanup off-screen characters (only flying type)
         self.characters = self.spawner.cleanup_characters(self.characters, screen_width)
         
-        # Count existing patrolling enemies
+        # Count existing enemies per lane (MAX_ENEMIES is per lane, not total)
         from game.enums import MovementType
         patrolling_count = sum(1 for c in self.characters if c.is_alive and c.movement_type == MovementType.PATROLLING)
-        alive_count = sum(1 for c in self.characters if c.is_alive)
         
-        # Spawn new characters if under max limit
+        # Count enemies per lane
+        enemies_per_lane = {}
+        for c in self.characters:
+            if c.is_alive:
+                lane = c.lane
+                enemies_per_lane[lane] = enemies_per_lane.get(lane, 0) + 1
+        
+        # Spawn new characters if under max limit per lane
         self.spawn_timer += dt
-        if self.spawn_timer >= self.spawn_interval and alive_count < Config.MAX_ENEMIES:
-            new_character = self.spawner.spawn_character(
-                screen_width=screen_width,
-                screen_height=screen_height,
-                ui_panel_height=ui_panel_height,
-                existing_patrolling=patrolling_count,
-                max_enemies=Config.MAX_ENEMIES
-            )
-            if new_character:
-                self.characters.append(new_character)
+        if self.spawn_timer >= self.spawn_interval:
+            # Check if we can spawn on any lane
+            can_spawn = False
+            for lane in range(Config.NUM_LANES):
+                if enemies_per_lane.get(lane, 0) < Config.MAX_ENEMIES:
+                    can_spawn = True
+                    break
+            
+            if can_spawn:
+                new_character = self.spawner.spawn_character(
+                    screen_width=screen_width,
+                    screen_height=screen_height,
+                    ui_panel_height=ui_panel_height,
+                    existing_patrolling=patrolling_count,
+                    max_enemies=Config.MAX_ENEMIES,
+                    enemies_per_lane=enemies_per_lane
+                )
+                if new_character:
+                    self.characters.append(new_character)
             self.spawn_timer = 0.0
     
     def draw(self) -> None:

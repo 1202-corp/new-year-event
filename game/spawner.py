@@ -57,13 +57,16 @@ class CharacterSpawner:
         screen_height: Optional[int] = None,
         ui_panel_height: int = 0,
         existing_patrolling: int = 0,
-        max_enemies: int = 20
+        max_enemies: int = 20,
+        enemies_per_lane: Optional[dict] = None
     ) -> Optional[Character]:
-        """Spawns a new character on a random lane"""
+        """Spawns a new character on a random lane (respecting MAX_ENEMIES per lane)"""
         if screen_height is None:
             screen_height = Config.SCREEN_HEIGHT
         if screen_width is None:
             screen_width = Config.SCREEN_WIDTH
+        if enemies_per_lane is None:
+            enemies_per_lane = {}
         
         # Calculate safe area bounds (accounting for UI panel)
         margin = get_safe_area_margin(screen_width, screen_height, ui_panel_height)
@@ -72,8 +75,8 @@ class CharacterSpawner:
         
         # Determine movement type based on ratio (2/3 patrolling, 1/3 flying)
         # But special characters (Santa, Grinch, Rudolph) must be patrolling
-        total_enemies = existing_patrolling + 1  # +1 for the one we're about to spawn
-        patrolling_ratio = existing_patrolling / max_enemies if max_enemies > 0 else 0
+        total_enemies = sum(enemies_per_lane.values())
+        patrolling_ratio = existing_patrolling / total_enemies if total_enemies > 0 else 0
         
         # Decide movement type
         if patrolling_ratio < 0.67:  # Less than 2/3 are patrolling
@@ -94,8 +97,13 @@ class CharacterSpawner:
             char_type = random.choice(self.flying_types)
             movement_type = MovementType.FLYING
         
-        # Select random lane
-        lane = random.randint(0, Config.NUM_LANES - 1)
+        # Select random lane that has space (MAX_ENEMIES per lane)
+        available_lanes = [lane for lane in range(Config.NUM_LANES) 
+                          if enemies_per_lane.get(lane, 0) < max_enemies]
+        if not available_lanes:
+            return None  # All lanes are full
+        
+        lane = random.choice(available_lanes)
         y = self.calculate_lane_y(lane, screen_height, ui_panel_height, margin)
         
         # Set speed based on movement type
@@ -106,12 +114,12 @@ class CharacterSpawner:
         
         # Set spawn position and direction
         if movement_type == MovementType.FLYING:
-            # Flying: spawn from left or right randomly
+            # Flying: spawn from left or right randomly, OFF SCREEN
             direction = random.choice([-1, 1])
-            if direction == 1:  # Right
-                spawn_x = safe_left + CHARACTER_SPAWN_X if CHARACTER_SPAWN_X < 0 else safe_left
-            else:  # Left
-                spawn_x = safe_right - CHARACTER_SPAWN_X if CHARACTER_SPAWN_X < 0 else safe_right
+            if direction == 1:  # Moving right, spawn from left (off screen)
+                spawn_x = -100  # Spawn completely off screen on the left
+            else:  # Moving left, spawn from right (off screen)
+                spawn_x = screen_width + 100  # Spawn completely off screen on the right
         else:
             # Patrolling: spawn somewhere in the middle
             spawn_x = random.randint(safe_left + 50, safe_right - 50)

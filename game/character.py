@@ -139,13 +139,21 @@ class Character:
         safe_top = margin
         safe_bottom = screen_height - ui_panel_height - margin  # Don't draw in UI panel area
         
-        # Don't draw if character is in safe area borders
-        if (self.x < safe_left or 
-            self.x + self.width > safe_right or
-            self.y < safe_top or
-            self.y + self.height > safe_bottom):
-            # Character is in safe area, don't draw
-            return
+        # For flying characters, allow drawing even if partially off screen
+        # For patrolling characters, don't draw if in safe area borders
+        if self.movement_type == MovementType.PATROLLING:
+            if (self.x < safe_left or 
+                self.x + self.width > safe_right or
+                self.y < safe_top or
+                self.y + self.height > safe_bottom):
+                # Character is in safe area, don't draw
+                return
+        else:
+            # Flying: only check vertical bounds (top/bottom), allow horizontal off-screen
+            if (self.y < safe_top or
+                self.y + self.height > safe_bottom):
+                # Character is outside vertical safe area, don't draw
+                return
         
         # Simple character representation (sprites will be added later)
         pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
