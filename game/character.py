@@ -178,9 +178,10 @@ class Character:
         shadow_height = int(self.height * shadow_scale)
         
         # Shadow position: centered on lane line, slightly offset down
+        # Shadow also has height_offset like the character for depth variation
         shadow_offset_y = 3  # Small vertical offset
         shadow_x = self.x - (shadow_width - self.width) // 2
-        shadow_y = self.y + self.height // 2 - shadow_height // 2 + shadow_offset_y
+        shadow_y = self.y + self.height // 2 - shadow_height // 2 + shadow_offset_y + self.height_offset
         
         # Create semi-transparent shadow surface
         shadow_surface = pygame.Surface((shadow_width, shadow_height), pygame.SRCALPHA)
