@@ -103,7 +103,8 @@ def apply_perspective_transform(frame, src_points):
     Apply perspective transformation to the frame
     src_points: (top_left, top_right, bottom_right, bottom_left)
     """
-    if None in src_points:
+    # Check if any point is None (need to check each element separately)
+    if any(p is None for p in src_points):
         return None
     
     # Get frame dimensions
