@@ -198,6 +198,44 @@ class Game:
         """Resumes the game from pause"""
         self.state = GameState.PLAYING
     
+    def _create_calibration_characters(self) -> None:
+        """Create random characters for calibration screen"""
+        import random
+        from game.character import Character
+        from game.enums import CharacterType, MovementType
+        from game.safe_area import get_safe_area_margin
+        
+        screen_width = self.screen.get_width()
+        screen_height = self.screen.get_height()
+        ui_panel_height = self.ui_panel.panel_height
+        margin = get_safe_area_margin(screen_width, screen_height, ui_panel_height)
+        
+        # Create 10-15 random characters at random positions
+        num_chars = random.randint(10, 15)
+        self.calibration_characters = []
+        
+        for _ in range(num_chars):
+            # Random position within safe area
+            x = random.randint(margin, screen_width - margin - 60)
+            y = random.randint(margin, screen_height - ui_panel_height - margin - 60)
+            
+            # Random character type
+            char_type = random.choice(list(CharacterType))
+            
+            # Get speed for this character type
+            speed = self.spawner.speed_map.get(char_type, 100)
+            
+            character = Character(
+                char_type=char_type,
+                x=x,
+                y=y,
+                speed=speed,
+                movement_type=MovementType.PATROLLING,  # All stationary for calibration
+                lane=0,  # Not used for calibration
+                screen_height=screen_height
+            )
+            self.calibration_characters.append(character)
+    
     def restart_game(self) -> None:
         """Restarts the game"""
         self.characters.clear()
@@ -270,6 +308,25 @@ class Game:
                     mods = pygame.key.get_mods()
                     if mods & pygame.KMOD_ALT:
                         self.toggle_fullscreen()
+                elif event.key == pygame.K_SPACE:
+                    # Calibration: space bar to proceed
+                    if self.state == GameState.CALIBRATING:
+                        if self.calibration_step == 0:
+                            # First space: calibrate and show preview
+                            if self.aruco_transform is not None:
+                                screen_width = self.screen.get_width()
+                                screen_height = self.screen.get_height()
+                                if self.aruco_transform.calibrate(screen_width, screen_height):
+                                    self.calibration_step = 1
+                                    self.state = GameState.CALIBRATION_PREVIEW
+                                    logger.info("Calibration successful, showing preview. Press SPACE to start game.")
+                                else:
+                                    logger.warning("Calibration failed. Make sure all 4 Aruco markers are visible.")
+                        elif self.calibration_step == 1:
+                            # Second space: start game
+                            self.calibration_step = 2
+                            self.state = GameState.PLAYING
+                            logger.info("Starting game with calibrated transform.")
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left mouse button

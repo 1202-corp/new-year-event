@@ -32,6 +32,10 @@ class ArucoTransform:
         self.inverse_transform_matrix = None
         self.transform_valid = False
         
+        # Calibration state
+        self.calibrated = False
+        self.calibration_marker_positions = None  # Store marker positions after calibration
+        
         # Debug display
         self.debug_enabled = True  # Enable debug windows
         
