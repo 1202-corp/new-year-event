@@ -31,7 +31,7 @@ class Config:
     
     # Gameplay settings
     MAX_ENEMIES: int = int(os.getenv("MAX_ENEMIES", "20"))
-    NUM_LANES: int = int(os.getenv("NUM_LANES", "4"))
+    NUM_LINES: int = int(os.getenv("NUM_LINES", "3"))
     ENEMY_WIDTH: int = int(os.getenv("ENEMY_WIDTH", "60"))
     ENEMY_HEIGHT: int = int(os.getenv("ENEMY_HEIGHT", "60"))
     

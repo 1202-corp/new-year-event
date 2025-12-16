@@ -48,7 +48,7 @@ class CharacterSpawner:
         """Calculate Y position for a specific lane"""
         # Available height = screen height - UI panel - margins
         available_height = screen_height - ui_panel_height - margin * 2
-        lane_spacing = available_height / (Config.NUM_LANES + 1)
+        lane_spacing = available_height / (Config.NUM_LINES + 1)
         return margin + int(lane_spacing * (lane + 1))
     
     def spawn_character(
@@ -98,7 +98,7 @@ class CharacterSpawner:
             movement_type = MovementType.FLYING
         
         # Select random lane that has space (MAX_ENEMIES per lane)
-        available_lanes = [lane for lane in range(Config.NUM_LANES) 
+        available_lanes = [lane for lane in range(Config.NUM_LINES) 
                           if enemies_per_lane.get(lane, 0) < max_enemies]
         if not available_lanes:
             return None  # All lanes are full

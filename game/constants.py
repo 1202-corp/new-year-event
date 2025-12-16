@@ -26,13 +26,13 @@ try:
     CHARACTER_WIDTH = Config.ENEMY_WIDTH
     CHARACTER_HEIGHT = Config.ENEMY_HEIGHT
     MAX_ENEMIES = Config.MAX_ENEMIES
-    NUM_LANES = Config.NUM_LANES
+    NUM_LINES = Config.NUM_LINES
 except ImportError:
     # Fallback values if Config not available
     CHARACTER_WIDTH = 60
     CHARACTER_HEIGHT = 60
     MAX_ENEMIES = 20
-    NUM_LANES = 4
+    NUM_LINES = 3
 
 CHARACTER_SPAWN_INTERVAL = 2.0  # seconds
 CHARACTER_SPAWN_X = -60

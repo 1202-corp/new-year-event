@@ -383,7 +383,7 @@ class Game:
         if self.spawn_timer >= self.spawn_interval:
             # Check if we can spawn on any lane
             can_spawn = False
-            for lane in range(Config.NUM_LANES):
+            for lane in range(Config.NUM_LINES):
                 if enemies_per_lane.get(lane, 0) < Config.MAX_ENEMIES:
                     can_spawn = True
                     break
@@ -450,8 +450,8 @@ class Game:
         
         # Draw UI panel (bottom)
         alive_count = sum(1 for c in self.characters if c.is_alive)
-        # Maximum enemies = MAX_ENEMIES per lane * NUM_LANES
-        max_total_enemies = Config.MAX_ENEMIES * Config.NUM_LANES
+        # Maximum enemies = MAX_ENEMIES per lane * NUM_LINES
+        max_total_enemies = Config.MAX_ENEMIES * Config.NUM_LINES
         self.ui_panel.draw(self.screen, self.score_manager.get_score(), alive_count, max_total_enemies)
         
         # Draw UI (currently disabled)
@@ -543,7 +543,7 @@ class Game:
         
         margin = get_safe_area_margin(screen_width, screen_height, ui_panel_height)
         available_height = screen_height - ui_panel_height - margin * 2
-        lane_spacing = available_height / (Config.NUM_LANES + 1)
+        lane_spacing = available_height / (Config.NUM_LINES + 1)
         
         # Dark blue color for lane lines (darker)
         lane_color = (5, 10, 25)  # Very dark blue-gray
