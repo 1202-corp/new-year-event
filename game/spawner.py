@@ -68,10 +68,10 @@ class CharacterSpawner:
         if enemies_per_lane is None:
             enemies_per_lane = {}
         
-        # Calculate safe area bounds (accounting for UI panel)
-        margin = get_safe_area_margin(screen_width, screen_height, ui_panel_height)
+        # Calculate safe area bounds (screen_width is already game_area_width excluding vertical panel)
+        margin = get_safe_area_margin(screen_width, screen_height, 0)
         safe_left = margin
-        safe_right = screen_width - margin
+        safe_right = screen_width - margin  # screen_width is already game_area_width
         
         # Determine movement type based on ratio (2/3 patrolling, 1/3 flying)
         # But special characters (Santa, Grinch, Rudolph) must be patrolling
