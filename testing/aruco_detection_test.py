@@ -37,33 +37,50 @@ def detect_aruco_markers(frame):
     return corners, ids
 
 
-def determine_corners(corners, ids):
+def get_closest_corner_to_center(corner_points, screen_center):
+    """
+    Get the corner of a marker that is closest to the screen center.
+    corner_points: array of 4 corners of the marker
+    screen_center: (x, y) center of the screen
+    Returns: corner point closest to screen center
+    """
+    distances = []
+    for corner in corner_points:
+        dist = np.sqrt((corner[0] - screen_center[0])**2 + (corner[1] - screen_center[1])**2)
+        distances.append(dist)
+    
+    closest_idx = np.argmin(distances)
+    return corner_points[closest_idx]
+
+
+def determine_corners(corners, ids, screen_center):
     """
     Determine which marker belongs to which corner.
     Expected IDs: 0, 1, 2, 3
-    Returns: top_left, top_right, bottom_right, bottom_left (centers)
+    Returns: top_left, top_right, bottom_right, bottom_left
+    Uses corner closest to screen center for each marker.
     Uses last known positions if markers are temporarily lost.
     """
     global last_marker_positions
     
-    # Get center points of each marker from current frame
-    marker_centers = {}
+    # Get corner points (closest to screen center) of each marker from current frame
+    marker_corners = {}
     if ids is not None:
         for i, marker_id in enumerate(ids.flatten()):
             if marker_id in [0, 1, 2, 3]:
-                # Calculate center of marker
+                # Get corner closest to screen center
                 corner_points = corners[i][0]
-                center = np.mean(corner_points, axis=0)
-                marker_centers[marker_id] = center
+                closest_corner = get_closest_corner_to_center(corner_points, screen_center)
+                marker_corners[marker_id] = closest_corner
                 # Update last known position
-                last_marker_positions[marker_id] = center
+                last_marker_positions[marker_id] = closest_corner
     
     # Use last known positions for missing markers
     for marker_id in [0, 1, 2, 3]:
-        if marker_id not in marker_centers and last_marker_positions[marker_id] is not None:
-            marker_centers[marker_id] = last_marker_positions[marker_id]
+        if marker_id not in marker_corners and last_marker_positions[marker_id] is not None:
+            marker_corners[marker_id] = last_marker_positions[marker_id]
     
-    if len(marker_centers) != 4:
+    if len(marker_corners) != 4:
         return None, None, None, None
     
     # Determine corners based on position
@@ -72,41 +89,22 @@ def determine_corners(corners, ids):
     # Bottom-right: largest x + y
     # Bottom-left: smallest x, largest y
     
-    centers_list = [(id, center) for id, center in marker_centers.items()]
+    corners_list = [(id, corner) for id, corner in marker_corners.items()]
     
     # Find top-left (minimum x + y)
-    top_left = min(centers_list, key=lambda x: x[1][0] + x[1][1])
+    top_left_marker = min(corners_list, key=lambda x: x[1][0] + x[1][1])
     
     # Find top-right (maximum x, minimum y)
-    top_right = max(centers_list, key=lambda x: x[1][0] - x[1][1])
+    top_right_marker = max(corners_list, key=lambda x: x[1][0] - x[1][1])
     
     # Find bottom-right (maximum x + y)
-    bottom_right = max(centers_list, key=lambda x: x[1][0] + x[1][1])
+    bottom_right_marker = max(corners_list, key=lambda x: x[1][0] + x[1][1])
     
     # Find bottom-left (minimum x, maximum y)
-    bottom_left = min(centers_list, key=lambda x: x[1][0] - x[1][1])
+    bottom_left_marker = min(corners_list, key=lambda x: x[1][0] - x[1][1])
     
-    # Get center points from markers (not corners)
-    top_left_center = None
-    top_right_center = None
-    bottom_right_center = None
-    bottom_left_center = None
-    
-    for i, marker_id in enumerate(ids.flatten()):
-        # Calculate center of marker (mean of all 4 corners)
-        corner_points = corners[i][0]
-        center = np.mean(corner_points, axis=0)
-        
-        if marker_id == top_left[0]:
-            top_left_center = center
-        elif marker_id == top_right[0]:
-            top_right_center = center
-        elif marker_id == bottom_right[0]:
-            bottom_right_center = center
-        elif marker_id == bottom_left[0]:
-            bottom_left_center = center
-    
-    return top_left_center, top_right_center, bottom_right_center, bottom_left_center
+    return (top_left_marker[1], top_right_marker[1], 
+            bottom_right_marker[1], bottom_left_marker[1])
 
 
 def apply_perspective_transform(frame, src_points):
