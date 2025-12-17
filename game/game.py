@@ -610,59 +610,6 @@ class Game:
                 8  # Line width (thicker)
             )
     
-    def _get_game_objects_for_detector_with_delay(self, current_time: float) -> dict:
-        """Get game objects positions for collision detector masking with camera delay compensation"""
-        screen_width = self.screen.get_width()
-        screen_height = self.screen.get_height()
-        ui_panel_width = self.ui_panel.panel_width
-        
-        # Calculate target time (current time minus camera delay)
-        camera_delay_seconds = Config.CAMERA_DELAY_MS / 1000.0
-        target_time = current_time - camera_delay_seconds
-        
-        # Find enemy positions from history closest to target time
-        enemies = []
-        if self.enemy_position_history:
-            # Find closest timestamp in history (more efficient with deque)
-            closest_entry = min(self.enemy_position_history, key=lambda x: abs(x[0] - target_time))
-            historical_positions = closest_entry[1]
-            
-            # Map historical positions to current characters (by object ID)
-            for character in self.characters:
-                if character.is_alive:
-                    char_id = id(character)
-                    if char_id in historical_positions:
-                        # Use historical position
-                        x, y, w, h = historical_positions[char_id]
-                        enemies.append((x, y, w, h))
-                    else:
-                        # Fallback to current position if not in history
-                        enemies.append((character.x, character.y, character.width, character.height))
-        else:
-            # No history yet, use current positions
-            for character in self.characters:
-                if character.is_alive:
-                    enemies.append((character.x, character.y, character.width, character.height))
-        
-        # Get lane line Y positions (these don't change, so no delay needed)
-        from game.safe_area import get_safe_area_margin
-        margin = get_safe_area_margin(screen_width, screen_height, 0)
-        available_height = screen_height - margin * 2
-        lane_spacing = available_height / (Config.NUM_LINES + 1)
-        lines = []
-        for lane in range(Config.NUM_LINES):
-            y = margin + int(lane_spacing * (lane + 1))
-            lines.append(y)
-        
-        # Get UI panel position (doesn't change, so no delay needed)
-        ui_panel = (screen_width - ui_panel_width, 0, ui_panel_width, screen_height)
-        
-        return {
-            'enemies': enemies,
-            'lines': lines,
-            'ui_panel': ui_panel
-        }
-    
     def _show_collision_debug(self, result: dict, original_frame) -> None:
         """Show 3 debug windows horizontally: original camera, transformed, motion mask"""
         try:
