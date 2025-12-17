@@ -41,6 +41,7 @@ class Config:
     SNOWBALL_CAMERA_HEIGHT: int = int(os.getenv("SNOWBALL_CAMERA_HEIGHT", "1080"))
     
     # Camera quality settings (for snowball/Aruco detection camera)
+    SNOWBALL_CAMERA_EXPOSURE: float = float(os.getenv("SNOWBALL_CAMERA_EXPOSURE", "-20"))
     SNOWBALL_CAMERA_BRIGHTNESS: float = float(os.getenv("SNOWBALL_CAMERA_BRIGHTNESS", "42.0"))
     SNOWBALL_CAMERA_CONTRAST: float = float(os.getenv("SNOWBALL_CAMERA_CONTRAST", "128.0"))
     SNOWBALL_CAMERA_SATURATION: float = float(os.getenv("SNOWBALL_CAMERA_SATURATION", "53.0"))

@@ -55,6 +55,7 @@ class ArucoTransform:
                 self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
                 
                 # Apply camera quality settings from config
+                self.camera.set(cv2.CAP_PROP_EXPOSURE, Config.SNOWBALL_CAMERA_EXPOSURE)
                 self.camera.set(cv2.CAP_PROP_BRIGHTNESS, Config.SNOWBALL_CAMERA_BRIGHTNESS)
                 self.camera.set(cv2.CAP_PROP_CONTRAST, Config.SNOWBALL_CAMERA_CONTRAST)
                 self.camera.set(cv2.CAP_PROP_SATURATION, Config.SNOWBALL_CAMERA_SATURATION)
