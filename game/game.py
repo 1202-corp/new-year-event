@@ -391,18 +391,7 @@ class Game:
         for character in self.characters:
             character.update(dt, screen_width=game_area_width, screen_height=screen_height)
         
-        # Store current enemy positions with timestamp for camera delay compensation
-        import time
-        current_time = time.time() - self.game_start_time
-        current_enemy_positions = {}
-        for character in self.characters:
-            if character.is_alive:
-                current_enemy_positions[id(character)] = (character.x, character.y, character.width, character.height)
-        
-        # Add to history (deque automatically limits size)
-        self.enemy_position_history.append((current_time, current_enemy_positions))
-        
-        # Update wall collision detector if enabled (process less frequently for performance)
+        # Update ball detector if enabled (process less frequently for performance)
         self.frame_counter += 1
         if (self.wall_collision_detector and self.aruco_transform and 
             self.aruco_transform.calibrated and 
@@ -412,7 +401,7 @@ class Game:
                 import cv2
                 frame = self.aruco_transform.read_camera_frame()
                 if frame is not None:
-                    # Detect ball using YOLO (no need for game objects masking)
+                    # Detect ball using YOLO
                     result = self.wall_collision_detector.detect_collision(frame)
                     
                     # Show debug windows less frequently (every Nth processed frame)
@@ -420,7 +409,7 @@ class Game:
                     if self.debug_update_counter % self.debug_update_every_n == 0:
                         self._show_collision_debug(result, frame)
             except Exception as e:
-                logger.debug(f"Error in wall collision detection: {e}")
+                logger.debug(f"Error in ball detection: {e}")
         
         # Cleanup off-screen characters (only flying type)
         self.characters = self.spawner.cleanup_characters(self.characters, game_area_width)
