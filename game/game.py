@@ -412,11 +412,8 @@ class Game:
                 import cv2
                 frame = self.aruco_transform.read_camera_frame()
                 if frame is not None:
-                    # Get game objects positions for masking (with camera delay compensation)
-                    game_objects = self._get_game_objects_for_detector_with_delay(current_time)
-                    
-                    # Detect collision
-                    result = self.wall_collision_detector.detect_collision(frame, game_objects)
+                    # Detect ball using YOLO (no need for game objects masking)
+                    result = self.wall_collision_detector.detect_collision(frame)
                     
                     # Show debug windows less frequently (every Nth processed frame)
                     self.debug_update_counter += 1
