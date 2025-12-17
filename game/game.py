@@ -101,8 +101,6 @@ class Game:
         # Performance optimization: process camera frames less frequently
         self.frame_counter = 0
         self.process_every_n_frames = 2  # Process every 2nd frame (30 FPS instead of 60)
-        self.debug_update_counter = 0
-        self.debug_update_every_n = 3  # Update debug windows every 3rd processed frame (10 FPS)
         
         # Game components (MUST be initialized before _update_scaling)
         self.characters: List[Character] = []
