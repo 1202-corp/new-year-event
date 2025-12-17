@@ -404,10 +404,8 @@ class Game:
                     # Detect ball using YOLO
                     result = self.wall_collision_detector.detect_collision(frame)
                     
-                    # Show debug windows less frequently (every Nth processed frame)
-                    self.debug_update_counter += 1
-                    if self.debug_update_counter % self.debug_update_every_n == 0:
-                        self._show_collision_debug(result, frame)
+                    # Always show debug windows (for visibility)
+                    self._show_collision_debug(result, frame)
             except Exception as e:
                 logger.debug(f"Error in ball detection: {e}")
         
