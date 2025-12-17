@@ -607,70 +607,52 @@ class Game:
             )
     
     def _show_collision_debug(self, result: dict, original_frame) -> None:
-        """Show 3 debug windows horizontally: original camera, transformed, motion mask"""
+        """Show 2 debug windows horizontally: original camera, transformed with YOLO detection"""
         try:
             import cv2
             import numpy as np
             
-            if 'transformed_frame' not in result or 'motion_mask' not in result:
+            if 'transformed_frame' not in result:
                 return
             
             original_camera = original_frame.copy()
             transformed_frame = result['transformed_frame'].copy()
-            motion_mask = result['motion_mask']
-            
-            # Convert motion mask to color
-            motion_colored = cv2.applyColorMap(motion_mask, cv2.COLORMAP_JET)
             
             # Draw ball position on transformed frame
             if result['ball_detected'] and result['ball_position']:
                 x, y = result['ball_position']
-                cv2.circle(transformed_frame, (x, y), 20, (0, 255, 255), 3)
-                cv2.putText(transformed_frame, "BALL", (x + 25, y),
+                cv2.circle(transformed_frame, (x, y), 30, (0, 255, 255), 3)
+                cv2.putText(transformed_frame, "BALL DETECTED", (x - 60, y - 40),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
             
-            # Draw game objects mask overlay on transformed frame (green)
-            if 'game_objects_mask' in result:
-                mask_colored_overlay = np.zeros_like(transformed_frame)
-                mask_colored_overlay[result['game_objects_mask'] > 0] = [0, 255, 0]
-                transformed_frame = cv2.addWeighted(transformed_frame, 0.8, mask_colored_overlay, 0.2, 0)
+            # Define target size for each individual frame in the combined view
+            target_width_per_frame = 1280
+            target_height_per_frame = 720
             
-            # Resize all to 1280x720
-            target_width = 1280
-            target_height = 720
-            
-            original_resized = cv2.resize(original_camera, (target_width, target_height))
-            transformed_resized = cv2.resize(transformed_frame, (target_width, target_height))
-            motion_resized = cv2.resize(motion_colored, (target_width, target_height))
+            # Resize each frame to the target size
+            original_resized = cv2.resize(original_camera, (target_width_per_frame, target_height_per_frame))
+            transformed_resized = cv2.resize(transformed_frame, (target_width_per_frame, target_height_per_frame))
             
             # Add labels
             cv2.putText(original_resized, "Original Camera", (10, 30),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             
-            cv2.putText(transformed_resized, "Transformed (Aruco)", (10, 30),
+            status_text = "Transformed (Aruco) + YOLO"
+            if result['ball_detected']:
+                status_text += " - BALL DETECTED"
+            cv2.putText(transformed_resized, status_text, (10, 30),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             
-            cv2.putText(motion_resized, "Motion Mask", (10, 30),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            # Combine horizontally
+            combined = np.hstack((original_resized, transformed_resized))
             
-            # Combine horizontally: original camera, transformed camera, motion mask
-            total_width = target_width * 3
-            combined = np.zeros((target_height, total_width, 3), dtype=np.uint8)
-            
-            x_offset = 0
-            combined[:, x_offset:x_offset + target_width] = original_resized
-            x_offset += target_width
-            combined[:, x_offset:x_offset + target_width] = transformed_resized
-            x_offset += target_width
-            combined[:, x_offset:x_offset + target_width] = motion_resized
-            
-            # Resize final combined image by 3x (divide by 3)
-            final_width = int(total_width / 3)
-            final_height = int(target_height / 3)
+            # Scale down the final combined image by a factor of 3
+            final_width = int(combined.shape[1] / 3)
+            final_height = int(combined.shape[0] / 3)
             final_combined = cv2.resize(combined, (final_width, final_height))
             
             # Show combined window
-            cv2.imshow("Motion Detection: Original | Transformed | Motion Mask", final_combined)
+            cv2.imshow("Ball Detection: Original | Transformed + YOLO", final_combined)
             cv2.waitKey(1)
         except Exception as e:
             logger.debug(f"Error showing collision debug: {e}")
