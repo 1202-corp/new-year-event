@@ -1,6 +1,8 @@
 """Aruco marker detection and perspective transformation for game display"""
 import cv2
 import numpy as np
+import sys
+import platform
 from typing import Optional, Tuple
 from game.logger import get_logger
 
@@ -12,6 +14,59 @@ ARUCO_MARKER_IDS = [0, 1, 2, 3]  # Expected marker IDs
 
 # Global storage for last known marker positions
 last_marker_positions = {0: None, 1: None, 2: None, 3: None}
+
+
+def _get_camera_backend():
+    """
+    Get appropriate camera backend based on platform.
+    On Windows, use DirectShow (CAP_DSHOW) for better exposure control.
+    On Linux, use V4L2. On other platforms, use default.
+    """
+    system = platform.system()
+    if system == "Windows":
+        # DirectShow works better for exposure control on Windows
+        return cv2.CAP_DSHOW
+    elif system == "Linux":
+        return cv2.CAP_V4L2
+    else:
+        return 0  # Default backend
+
+
+def _setup_camera_exposure(camera):
+    """
+    Setup camera exposure with correct AUTO_EXPOSURE value based on backend.
+    
+    For DirectShow (Windows): AUTO_EXPOSURE = 1 enables manual mode
+    For MSMF (Windows): AUTO_EXPOSURE = 0 disables auto exposure
+    For V4L2 (Linux): AUTO_EXPOSURE = 0 disables auto exposure
+    For some cameras (ELP): AUTO_EXPOSURE = 0.25 works
+    
+    Returns True if successful, False otherwise.
+    """
+    system = platform.system()
+    
+    # Try different AUTO_EXPOSURE values based on platform
+    auto_exposure_values = []
+    if system == "Windows":
+        # Try DirectShow value first (1 = manual mode), then MSMF value (0)
+        auto_exposure_values = [1.0, 0.25, 0.0]
+    else:
+        # Linux and other platforms: 0 disables auto exposure
+        auto_exposure_values = [0.0, 0.25, 1.0]
+    
+    for auto_exp_val in auto_exposure_values:
+        try:
+            camera.set(cv2.CAP_PROP_AUTO_EXPOSURE, auto_exp_val)
+            # Verify it was set
+            actual_val = camera.get(cv2.CAP_PROP_AUTO_EXPOSURE)
+            logger.debug(f"Set AUTO_EXPOSURE to {auto_exp_val}, actual value: {actual_val}")
+            return True
+        except Exception as e:
+            logger.debug(f"Failed to set AUTO_EXPOSURE to {auto_exp_val}: {e}")
+            continue
+    
+    logger.warning("Could not set AUTO_EXPOSURE, exposure control may not work")
+    return False
 
 
 class ArucoTransform:
@@ -46,7 +101,9 @@ class ArucoTransform:
         """Initialize camera for Aruco detection"""
         try:
             from game.config import Config
-            self.camera = cv2.VideoCapture(self.camera_index)
+            # Use platform-appropriate backend
+            backend = _get_camera_backend()
+            self.camera = cv2.VideoCapture(self.camera_index, backend)
             if self.camera.isOpened():
                 # Set camera format to MJPEG for better performance
                 fourcc = cv2.VideoWriter_fourcc(*'MJPG')
@@ -54,14 +111,25 @@ class ArucoTransform:
                 self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
                 self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
                 
+                # Setup exposure control (must be done before setting exposure value)
+                _setup_camera_exposure(self.camera)
+                
                 # Apply camera quality settings from config
                 self.camera.set(cv2.CAP_PROP_EXPOSURE, Config.SNOWBALL_CAMERA_EXPOSURE)
                 self.camera.set(cv2.CAP_PROP_BRIGHTNESS, Config.SNOWBALL_CAMERA_BRIGHTNESS)
                 self.camera.set(cv2.CAP_PROP_CONTRAST, Config.SNOWBALL_CAMERA_CONTRAST)
                 self.camera.set(cv2.CAP_PROP_SATURATION, Config.SNOWBALL_CAMERA_SATURATION)
                 self.camera.set(cv2.CAP_PROP_SHARPNESS, Config.SNOWBALL_CAMERA_SHARPNESS)
+                self.camera.set(cv2.CAP_PROP_GAIN, Config.SNOWBALL_CAMERA_GAIN)
+                self.camera.set(cv2.CAP_PROP_FOCUS, Config.SNOWBALL_CAMERA_FOCUS)
+                # Disable autofocus when setting manual focus
+                if Config.SNOWBALL_CAMERA_FOCUS >= 0:
+                    try:
+                        self.camera.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+                    except Exception:
+                        pass
                 
-                logger.info(f"Aruco camera {self.camera_index} initialized")
+                logger.info(f"Aruco camera {self.camera_index} initialized (backend: {backend})")
             else:
                 logger.warning(f"Could not open Aruco camera {self.camera_index}")
         except Exception as e:

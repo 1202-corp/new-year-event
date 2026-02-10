@@ -46,6 +46,8 @@ class Config:
     SNOWBALL_CAMERA_CONTRAST: float = float(os.getenv("SNOWBALL_CAMERA_CONTRAST", "128.0"))
     SNOWBALL_CAMERA_SATURATION: float = float(os.getenv("SNOWBALL_CAMERA_SATURATION", "53.0"))
     SNOWBALL_CAMERA_SHARPNESS: float = float(os.getenv("SNOWBALL_CAMERA_SHARPNESS", "255.0"))
+    SNOWBALL_CAMERA_GAIN: float = float(os.getenv("SNOWBALL_CAMERA_GAIN", "88.0"))
+    SNOWBALL_CAMERA_FOCUS: float = float(os.getenv("SNOWBALL_CAMERA_FOCUS", "0.0"))
     
     # Camera settings for audience face display
     AUDIENCE_CAMERA_INDEX: int = int(os.getenv("AUDIENCE_CAMERA_INDEX", "1"))
@@ -63,6 +65,11 @@ class Config:
     VISION_ENABLED: bool = os.getenv("VISION_ENABLED", "false").lower() == "true"
     CALIBRATION_ENABLED: bool = os.getenv("CALIBRATION_ENABLED", "false").lower() == "true"
     CAMERA_DELAY_MS: float = float(os.getenv("CAMERA_DELAY_MS", "100"))  # Camera delay in milliseconds
+    BALL_COLLISION_RADIUS: int = int(os.getenv("BALL_COLLISION_RADIUS", "100"))  # Collision detection radius in pixels
+    YOLO_CONFIDENCE_THRESHOLD: float = float(os.getenv("YOLO_CONFIDENCE_THRESHOLD", "0.25"))  # YOLO confidence threshold (0.0-1.0)
+    YOLO_IMAGE_SIZE: int = int(os.getenv("YOLO_IMAGE_SIZE", "640"))  # YOLO input image size (320, 416, 640)
+    YOLO_MAX_DETECTIONS: int = int(os.getenv("YOLO_MAX_DETECTIONS", "10"))  # Maximum number of detections per frame
+    YOLO_ASYNC_PROCESSING: bool = os.getenv("YOLO_ASYNC_PROCESSING", "true").lower() == "true"  # Use async processing
     
     @classmethod
     def setup_display(cls) -> None:

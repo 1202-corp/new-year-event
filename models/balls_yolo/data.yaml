@@ -1,0 +1,7 @@
+path: .
+train: train.txt
+val: train.txt
+
+names:
+  0: ball
+

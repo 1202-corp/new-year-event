@@ -36,7 +36,11 @@ class CameraThread(threading.Thread):
             return
         
         try:
-            self.camera = cv2.VideoCapture(self.camera_index)
+            # Use platform-appropriate backend (DirectShow on Windows, V4L2 on Linux)
+            import platform
+            system = platform.system()
+            backend = cv2.CAP_DSHOW if system == "Windows" else (cv2.CAP_V4L2 if system == "Linux" else 0)
+            self.camera = cv2.VideoCapture(self.camera_index, backend)
             if self.camera.isOpened():
                 # Set camera format to MJPEG (compressed) instead of RAW (uncompressed)
                 # MJPEG is much faster and lighter than RAW format
@@ -198,7 +202,7 @@ class UIPanel:
             logger.debug(f"Error processing camera frame: {e}")
             self.current_frame_surface = None
     
-    def draw(self, screen: pygame.Surface, score: int, enemies_count: int, max_enemies: int) -> None:
+    def draw(self, screen: pygame.Surface, enemies_count: int, max_enemies: int) -> None:
         """Draw the UI panel (vertical, on right side)"""
         # Apply safe area margin
         from game.safe_area import get_safe_area_margin
@@ -209,37 +213,20 @@ class UIPanel:
         pygame.draw.rect(screen, DARK_BLUE, panel_rect)
         pygame.draw.rect(screen, WHITE, panel_rect, 2)  # Border
         
-        # Draw camera preview (centered horizontally in panel, positioned in upper part)
-        # Position: centered horizontally in panel, with padding from top
-        camera_x = self.panel_x + (self.panel_width - self.camera_window_size) // 2  # Centered horizontally
-        camera_y = margin + 20  # 20px padding from top
+        # Camera preview is now only shown in debug window, not in UI panel
+        # Camera still runs in background for face capture debug window
         
-        if self.current_frame_surface:
-            screen.blit(self.current_frame_surface, (camera_x, camera_y))
-        else:
-            # Draw placeholder if camera not available
-            camera_rect = pygame.Rect(camera_x, camera_y, self.camera_window_size, self.camera_window_size)
-            pygame.draw.rect(screen, GRAY, camera_rect)
-            pygame.draw.rect(screen, WHITE, camera_rect, 2)
-            placeholder_text = self.font_small.render("Camera", True, WHITE)
-            text_rect = placeholder_text.get_rect(center=camera_rect.center)
-            screen.blit(placeholder_text, text_rect)
-        
-        # Draw information (below camera) - use scaled padding
+        # Draw information - use scaled padding
         scaling = get_scaling()
         padding = int(scaling.scale_value(20))  # Scale padding based on screen size
         line_spacing = int(scaling.scale_value(40))  # Scale line spacing
         
         info_x = self.panel_x + padding
-        info_y = camera_y + self.camera_window_size + padding * 2  # Below camera with spacing
-        
-        # Score
-        score_text = self.font_large.render(f"Score: {score}", True, WHITE)
-        screen.blit(score_text, (info_x, info_y))
+        info_y = margin + padding  # Start from top with padding
         
         # Enemies count
         enemies_text = self.font_medium.render(f"Enemies: {enemies_count}/{max_enemies}", True, WHITE)
-        screen.blit(enemies_text, (info_x, info_y + line_spacing))
+        screen.blit(enemies_text, (info_x, info_y))
     
     def cleanup(self) -> None:
         """Cleanup camera resources"""

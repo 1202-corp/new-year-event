@@ -8,6 +8,7 @@ from game.constants import (
     CHARACTER_WIDTH, CHARACTER_HEIGHT
 )
 from game.scaling import get_scaling
+from game.face_texture import get_face_manager
 
 
 class Character:
@@ -53,6 +54,17 @@ class Character:
         self.points = self._get_points()
         self.color = self._get_color()
         
+        # Face texture (2/3 probability to use face)
+        self.face_texture = None
+        face_manager = get_face_manager()
+        # Reload faces to get newly saved ones
+        face_manager._load_faces()
+        if face_manager.should_use_face():
+            random_face = face_manager.get_random_face()
+            if random_face is not None:
+                # Apply color tint to face
+                self.face_texture = face_manager.apply_color_tint(random_face, self.color, intensity=0.48)
+        
         # Store base values for scaling
         self.base_width = CHARACTER_WIDTH
         self.base_height = CHARACTER_HEIGHT
@@ -64,8 +76,7 @@ class Character:
             CharacterType.SNOWMAN: 10,
             CharacterType.GRINCH: 25,
             CharacterType.SANTA: 50,
-            CharacterType.ELF: 15,
-            CharacterType.RUDOLPH: 100
+            CharacterType.ELF: 15
         }
         return points_map.get(self.type, 10)
     
@@ -75,8 +86,7 @@ class Character:
             CharacterType.SNOWMAN: WHITE,
             CharacterType.GRINCH: GREEN,
             CharacterType.SANTA: RED,
-            CharacterType.ELF: YELLOW,
-            CharacterType.RUDOLPH: ORANGE
+            CharacterType.ELF: YELLOW
         }
         return color_map.get(self.type, WHITE)
     
@@ -214,7 +224,15 @@ class Character:
         
         # Draw character with height offset for depth
         character_y = self.y + self.height_offset
-        pygame.draw.rect(screen, self.color, (self.x, character_y, self.width, self.height))
+        
+        # Draw face texture if available, otherwise draw colored rectangle
+        if self.face_texture is not None:
+            # Scale face texture to character size
+            scaled_face = pygame.transform.scale(self.face_texture, (self.width, self.height))
+            screen.blit(scaled_face, (self.x, character_y))
+        else:
+            # Draw colored rectangle (original behavior)
+            pygame.draw.rect(screen, self.color, (self.x, character_y, self.width, self.height))
     
     def _get_label(self) -> str:
         """Returns character label"""
@@ -222,8 +240,7 @@ class Character:
             CharacterType.SNOWMAN: "⛄",
             CharacterType.GRINCH: "👹",
             CharacterType.SANTA: "🎅",
-            CharacterType.ELF: "🧝",
-            CharacterType.RUDOLPH: "🦌"
+            CharacterType.ELF: "🧝"
         }
         return label_map.get(self.type, "?")
     

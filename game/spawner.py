@@ -22,12 +22,11 @@ class CharacterSpawner:
         ]
         
         # Patrolling characters (always on screen, patrol left-right)
-        # Santa, Grinch, Rudolph can ONLY be patrolling
+        # Santa, Grinch can ONLY be patrolling
         self.patrolling_types = [
             CharacterType.SNOWMAN,
             CharacterType.GRINCH,
             CharacterType.SANTA,
-            CharacterType.RUDOLPH,
             CharacterType.ELF
         ]
         
@@ -36,7 +35,6 @@ class CharacterSpawner:
             CharacterType.GRINCH: 100,   # Slower for patrolling (doubled)
             CharacterType.SANTA: 120,    # Medium for patrolling (doubled)
             CharacterType.ELF: 200,     # Fast for flying (doubled)
-            CharacterType.RUDOLPH: 80   # Slow for patrolling (doubled)
         }
         
         self.flying_speed_map = {
@@ -74,7 +72,7 @@ class CharacterSpawner:
         safe_right = screen_width - margin  # screen_width is already game_area_width
         
         # Determine movement type based on ratio (2/3 patrolling, 1/3 flying)
-        # But special characters (Santa, Grinch, Rudolph) must be patrolling
+        # But special characters (Santa, Grinch) must be patrolling
         total_enemies = sum(enemies_per_lane.values())
         patrolling_ratio = existing_patrolling / total_enemies if total_enemies > 0 else 0
         
@@ -84,7 +82,7 @@ class CharacterSpawner:
             char_type = random.choice(self.patrolling_types + self.flying_types)
             
             # Special characters must be patrolling
-            if char_type in [CharacterType.SANTA, CharacterType.GRINCH, CharacterType.RUDOLPH]:
+            if char_type in [CharacterType.SANTA, CharacterType.GRINCH]:
                 movement_type = MovementType.PATROLLING
             else:
                 # Random choice for others, but favor patrolling to reach 2/3

@@ -4,17 +4,17 @@ import sys
 import os
 from typing import List, Tuple
 from game.config import Config
-from game.constants import DARK_BLUE, WHITE
+from game.constants import DARK_BLUE, WHITE, BLACK
 from game.enums import GameState
 from game.character import Character
 from game.spawner import CharacterSpawner
-from game.score import ScoreManager
 from game.ui.menu import PauseMenu
 from game.ui_panel import UIPanel
 from game.scaling import init_scaling, get_scaling
 from game.logger import get_logger
 from game.aruco_transform import ArucoTransform
 from game.wall_collision_detector import WallCollisionDetector
+from game.face_capture import FaceCapture
 
 logger = get_logger()
 
@@ -91,10 +91,6 @@ class Game:
         self.state = GameState.CALIBRATING if Config.CALIBRATION_ENABLED else GameState.PLAYING
         self.running = True
         
-        # History for camera delay compensation
-        # Store enemy positions with timestamps to account for camera delay
-        from collections import deque
-        self.enemy_position_history = deque(maxlen=60)  # Keep last 60 frames (1 second at 60 FPS)
         import time
         self.game_start_time = time.time()
         
@@ -105,7 +101,6 @@ class Game:
         # Game components (MUST be initialized before _update_scaling)
         self.characters: List[Character] = []
         self.spawner = CharacterSpawner()
-        self.score_manager = ScoreManager()
         
         # Initialize scaling
         init_scaling(Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT)
@@ -153,6 +148,16 @@ class Game:
             except Exception as e:
                 logger.warning(f"Failed to initialize Aruco transform: {e}")
                 self.aruco_transform = None
+        
+        # Face capture for audience camera (always enabled)
+        # Pass UI panel to use its camera instead of opening a new one
+        self.face_capture = None
+        try:
+            self.face_capture = FaceCapture(ui_panel=self.ui_panel)
+            logger.info("Face capture enabled for audience camera")
+        except Exception as e:
+            logger.warning(f"Failed to initialize face capture: {e}")
+            self.face_capture = None
         
         # Wall collision detector (for ball detection)
         self.wall_collision_detector = None
@@ -263,7 +268,6 @@ class Game:
     def restart_game(self) -> None:
         """Restarts the game"""
         self.characters.clear()
-        self.score_manager.reset()
         self.spawn_timer = 0.0
         self.state = GameState.PLAYING
     
@@ -296,9 +300,7 @@ class Game:
         for character in self.characters:
             if character.is_alive and character.is_point_inside(pos):
                 character.is_alive = False
-                points = character.points
-                self.score_manager.add_points(points)
-                logger.debug(f"Killed {character.type.value}! Points: +{points} (Total: {self.score_manager.get_score()})")
+                logger.debug(f"Killed {character.type.value}!")
                 break
     
     def handle_events(self) -> None:
@@ -371,7 +373,21 @@ class Game:
                         logger.info("Aruco calibration successful. Starting game.")
                     else:
                         logger.warning("Calibration failed. Make sure all 4 Aruco markers are visible.")
+            
+            # Update face capture debug window
+            if self.face_capture is not None:
+                face_key = self.face_capture.update()
+                if face_key == -1:  # Quit signal
+                    self.running = False
+            
             return
+        
+        # Update face capture debug window (always active)
+        if self.face_capture is not None:
+            face_key = self.face_capture.update()
+            if face_key == -1:  # Quit signal
+                self.running = False
+                return
         
         if self.state != GameState.PLAYING:
             return
@@ -397,10 +413,39 @@ class Game:
             # Read frame from Aruco camera (same camera used for Aruco detection)
             try:
                 import cv2
+                import math
                 frame = self.aruco_transform.read_camera_frame()
                 if frame is not None:
-                    # Detect ball using YOLO
-                    result = self.wall_collision_detector.detect_collision(frame)
+                    # Detect ball using YOLO (pass dt for persistence mechanism)
+                    result = self.wall_collision_detector.detect_collision(frame, dt=dt)
+                    
+                    # Check collisions with enemies using ALL detections (not just best one)
+                    collision_radius = Config.BALL_COLLISION_RADIUS
+                    all_detections_game = result.get('all_detections_game', [])
+                    
+                    # Check each character for collision with any detection
+                    for character in self.characters:
+                        if not character.is_alive:
+                            continue
+                        
+                        char_center_x = character.x + character.width / 2
+                        char_center_y = character.y + character.height / 2
+                        
+                        # Check collision with all detections
+                        for det in all_detections_game:
+                            ball_x, ball_y = det['position_game']
+                            
+                            # Calculate distance between ball and character center
+                            distance = math.sqrt(
+                                (ball_x - char_center_x) ** 2 + 
+                                (ball_y - char_center_y) ** 2
+                            )
+                            
+                            # If within collision radius, kill the enemy
+                            if distance <= collision_radius:
+                                character.is_alive = False
+                                logger.debug(f"Enemy killed! Distance: {distance:.1f}, Radius: {collision_radius}, Confidence: {det['confidence']:.2f}")
+                                break  # Enemy already killed, no need to check other detections
                     
                     # Always show debug windows (for visibility)
                     self._show_collision_debug(result, frame)
@@ -449,7 +494,7 @@ class Game:
     def draw(self) -> None:
         """Draws the game"""
         # Background
-        self.screen.fill(DARK_BLUE)
+        self.screen.fill(BLACK)
         
         # Draw calibration screen or game
         if self.state == GameState.CALIBRATING:
@@ -476,7 +521,7 @@ class Game:
             character.draw(self.screen, ui_panel_width=ui_panel_width)
         
         # Draw UI panel
-        self.ui_panel.draw(self.screen, 0, len(self.calibration_characters), len(self.calibration_characters))
+        self.ui_panel.draw(self.screen, len(self.calibration_characters), len(self.calibration_characters))
     
     def _draw_game(self) -> None:
         """Draw normal game screen"""
@@ -497,7 +542,7 @@ class Game:
         alive_count = sum(1 for c in self.characters if c.is_alive)
         # Maximum enemies = MAX_ENEMIES per lane * NUM_LINES
         max_total_enemies = Config.MAX_ENEMIES * Config.NUM_LINES
-        self.ui_panel.draw(self.screen, self.score_manager.get_score(), alive_count, max_total_enemies)
+        self.ui_panel.draw(self.screen, alive_count, max_total_enemies)
         
         # Draw UI (currently disabled)
         self.draw_ui()
@@ -570,13 +615,13 @@ class Game:
         # Draw safe area borders with background color (only in game area, not UI panel)
         game_area_width = screen_width - ui_panel_width
         # Top border
-        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, game_area_width, margin))
+        pygame.draw.rect(self.screen, BLACK, (0, 0, game_area_width, margin))
         # Bottom border
-        pygame.draw.rect(self.screen, DARK_BLUE, (0, screen_height - margin, game_area_width, margin))
+        pygame.draw.rect(self.screen, BLACK, (0, screen_height - margin, game_area_width, margin))
         # Left border
-        pygame.draw.rect(self.screen, DARK_BLUE, (0, 0, margin, screen_height))
+        pygame.draw.rect(self.screen, BLACK, (0, 0, margin, screen_height))
         # Right border (before panel)
-        pygame.draw.rect(self.screen, DARK_BLUE, (game_area_width - margin, 0, margin, screen_height))
+        pygame.draw.rect(self.screen, BLACK, (game_area_width - margin, 0, margin, screen_height))
     
     def draw_lane_lines(self) -> None:
         """Draws visual lane lines (dark blue) to show where enemies move"""
@@ -618,12 +663,61 @@ class Game:
             original_camera = original_frame.copy()
             transformed_frame = result['transformed_frame'].copy()
             
-            # Draw ball position on transformed frame
+            # Draw all YOLO detections on original frame (detections happen before transformation)
+            if 'yolo_detections' in result:
+                for det in result['yolo_detections']:
+                    x1, y1, x2, y2 = det['bbox']
+                    center = det['center']
+                    confidence = det['confidence']
+                    
+                    # Draw bounding box on original frame
+                    color = (0, 255, 0) if result['ball_detected'] and result['ball_position'] == center else (0, 0, 255)
+                    cv2.rectangle(original_camera, (x1, y1), (x2, y2), color, 2)
+                    
+                    # Draw center point
+                    cv2.circle(original_camera, center, 5, color, -1)
+                    
+                    # Draw confidence (larger text)
+                    cv2.putText(original_camera, f"{confidence:.2f}", (x1, y1 - 15),
+                               cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 3)
+            
+            # Draw best ball position on original frame (if detected)
             if result['ball_detected'] and result['ball_position']:
                 x, y = result['ball_position']
-                cv2.circle(transformed_frame, (x, y), 30, (0, 255, 255), 3)
-                cv2.putText(transformed_frame, "BALL DETECTED", (x - 60, y - 40),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                confidence = result.get('confidence', 0.0)
+                cv2.circle(original_camera, (x, y), 30, (0, 255, 255), 4)
+                cv2.putText(original_camera, f"BALL: {confidence:.2f}", (x - 100, y - 50),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 255), 4)
+            
+            # Draw UI panel area outline on transformed frame (white border)
+            game_width = result.get('game_width')
+            game_height = result.get('game_height')
+            if game_width and game_height:
+                ui_panel_width_percent = Config.UI_PANEL_WIDTH_PERCENT / 100.0
+                ui_panel_start_x = int(game_width * (1 - ui_panel_width_percent))
+                # Draw white border for UI panel area
+                cv2.rectangle(transformed_frame, (ui_panel_start_x, 0), (game_width, game_height), (255, 255, 255), 3)
+            
+            # Draw all ball positions on transformed frame (red points showing where balls are after transformation)
+            all_detections_game = result.get('all_detections_game', [])
+            collision_radius = Config.BALL_COLLISION_RADIUS
+            
+            for det in all_detections_game:
+                game_x, game_y = det['position_game']
+                # Draw collision radius circle
+                cv2.circle(transformed_frame, (game_x, game_y), collision_radius, (0, 0, 255), 2)  # Red circle for collision radius
+                # Draw red point on transformed frame
+                cv2.circle(transformed_frame, (game_x, game_y), 15, (0, 0, 255), -1)  # Red filled circle
+                cv2.circle(transformed_frame, (game_x, game_y), 25, (0, 0, 255), 3)  # Red outline
+            
+            # Also draw best detection with different color if available
+            if result.get('ball_detected') and result.get('ball_position_game'):
+                game_x, game_y = result['ball_position_game']
+                # Draw collision radius circle for best detection
+                cv2.circle(transformed_frame, (game_x, game_y), collision_radius, (0, 255, 255), 2)  # Yellow circle for collision radius
+                # Draw yellow point for best detection
+                cv2.circle(transformed_frame, (game_x, game_y), 20, (0, 255, 255), -1)  # Yellow filled circle
+                cv2.circle(transformed_frame, (game_x, game_y), 30, (0, 255, 255), 3)  # Yellow outline
             
             # Define target size for each individual frame in the combined view
             target_width_per_frame = 1280
@@ -633,15 +727,15 @@ class Game:
             original_resized = cv2.resize(original_camera, (target_width_per_frame, target_height_per_frame))
             transformed_resized = cv2.resize(transformed_frame, (target_width_per_frame, target_height_per_frame))
             
-            # Add labels
-            cv2.putText(original_resized, "Original Camera", (10, 30),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-            
-            status_text = "Transformed (Aruco) + YOLO"
+            # Add labels (larger text)
+            original_label = "Original Camera + YOLO"
             if result['ball_detected']:
-                status_text += " - BALL DETECTED"
-            cv2.putText(transformed_resized, status_text, (10, 30),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                original_label += f" - BALL DETECTED ({result.get('confidence', 0.0):.2f})"
+            cv2.putText(original_resized, original_label, (10, 50),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
+            
+            cv2.putText(transformed_resized, "Transformed (Aruco)", (10, 50),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
             
             # Combine horizontally
             combined = np.hstack((original_resized, transformed_resized))
@@ -683,6 +777,13 @@ class Game:
             self.draw()
             
             self.clock.tick(Config.FPS)
+        
+        # Cleanup resources
+        if self.wall_collision_detector:
+            self.wall_collision_detector.cleanup()
+        
+        if self.face_capture is not None:
+            self.face_capture.release()
         
         pygame.quit()
         sys.exit()

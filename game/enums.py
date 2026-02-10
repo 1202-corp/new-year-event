@@ -8,7 +8,6 @@ class CharacterType(Enum):
     GRINCH = "grinch"
     SANTA = "santa"
     ELF = "elf"
-    RUDOLPH = "rudolph"
 
 
 class MovementType(Enum):
